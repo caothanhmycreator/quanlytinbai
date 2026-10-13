@@ -180,9 +180,13 @@
                                 </select>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-bold">Phân loại <span class="text-danger">*</span></label>
-                                <select class="form-select" id="sub_category" required>
-                                </select>
+                                <label class="form-label fw-bold">Phân loại (Chọn nhiều) <span class="text-danger">*</span></label>
+                                <div class="d-flex flex-wrap gap-2 pt-1">
+                                    <label class="custom-check-box py-1 px-2"><input class="form-check-input me-1 sub_category-cb" type="checkbox" value="Báo in"><span style="font-size:0.85rem">Báo in</span></label>
+                                    <label class="custom-check-box py-1 px-2"><input class="form-check-input me-1 sub_category-cb" type="checkbox" value="Phát thanh"><span style="font-size:0.85rem">Phát thanh</span></label>
+                                    <label class="custom-check-box py-1 px-2"><input class="form-check-input me-1 sub_category-cb" type="checkbox" value="Truyền hình"><span style="font-size:0.85rem">Truyền hình</span></label>
+                                    <label class="custom-check-box py-1 px-2"><input class="form-check-input me-1 sub_category-cb" type="checkbox" value="Điện tử"><span style="font-size:0.85rem">Điện tử</span></label>
+                                </div>
                             </div>
                         </div>
                         
@@ -336,33 +340,26 @@
     // --- KẾT NỐI SUPABASE ---
     const SUPABASE_URL = 'https://kgqijxdbcdxbwpdilbub.supabase.co';
     
-    // YÊU CẦU: XÓA dòng chữ bên dưới và dán MÃ CỦA BẠN vào giữa 2 dấu nháy đơn
+    // YÊU CẦU: XÓA dòng chữ bên dưới và dán MÃ CỦA BẠN (bắt đầu bằng eyJ...) vào giữa 2 dấu nháy đơn
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtncWlqeGRiY2R4YndwZGlsYnViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4Mzg5MjMsImV4cCI6MjEwNzQxNDkyM30.E1t5K-5-60ZSz5FuvjwsntB0byroVvym34OWKIXCrQU';
     
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // --- KHỞI TẠO DỮ LIỆU TĨNH ---
-    const defaultDestinations = ['Trang TTĐT', 'Báo ĐT', 'THĐT', 'PTĐT', 'Web Tỉnh ủy', 'Web TBND', 'Báo CAND', 'ANTV', 'Tuổi Trẻ', 'Người LĐ'];
-    const defaultContentTypes = ['An ninh', 'Phòng chống tội phạm', 'Quản lý hành chính', 'PCCC', 'Giao thông', 'XDLL', 'Phong trào', 'Chuyển đổi số', 'Cải cách hành chính'];
-    
-    const subCategoryMapping = {
-        'Tin': ['Tin báo in', 'Tin phát thanh', 'Tin truyền hình', 'Tin báo điện tử'],
-        'Bài': ['Bài báo in', 'Phóng sự phát thanh', 'Phóng sự truyền hình', 'Bài báo điện tử'],
-        'Video': ['Video Facebook', 'Video Youtube']
-    };
+    const defaultDestinations = ['Trang CAT', 'Báo ĐT', 'THĐT', 'PTĐT', 'Web Tỉnh ủy', 'Web TBND', 'Báo CAND', 'ANTV', 'Tuổi Trẻ', 'Người LĐ'];
+    const defaultContentTypes = ['An ninh', 'PCTP', 'Quản lý hành chính', 'PCCC', 'Giao thông', 'XDLL', 'Phong trào', 'Chuyển đổi số', 'Cải cách hành chính'];
 
-    let posts = []; // Dữ liệu sẽ load từ Server
+    let posts = []; 
     let editingId = null; 
 
     // --- GỌI DỮ LIỆU TỪ SERVER ---
     async function fetchPosts() {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('posts')
                 .select('*')
                 .order('publish_date', { ascending: false });
 
-            // Bắt lỗi rành mạch từ Supabase
             if (error) {
                 console.error("Lỗi từ Supabase:", error);
                 throw error;
@@ -375,7 +372,6 @@
             }
         } catch (error) {
             console.error('Lỗi khi tải dữ liệu:', error);
-            // In chi tiết lỗi ra màn hình để chẩn đoán
             const errorMsg = error.message || error.error_description || JSON.stringify(error);
             document.getElementById('dataTableBody').innerHTML = `
                 <tr>
@@ -395,15 +391,6 @@
         const mm = String(today.getMonth() + 1).padStart(2, '0');
         const dd = String(today.getDate()).padStart(2, '0');
         document.getElementById('publish_date').value = `${yyyy}-${mm}-${dd}`;
-    }
-
-    function renderSubCategories() {
-        const cat = document.getElementById('category').value;
-        const subCatSelect = document.getElementById('sub_category');
-        subCatSelect.innerHTML = '';
-        subCategoryMapping[cat].forEach(sub => {
-            subCatSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
-        });
     }
 
     function getMergedData(type) {
@@ -448,15 +435,15 @@
         input.value = '';
     }
 
-    document.getElementById('category').addEventListener('change', renderSubCategories);
-
     // --- LƯU / CẬP NHẬT LÊN SERVER ---
     document.getElementById('postForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         
+        let subCats = Array.from(document.querySelectorAll('.sub_category-cb:checked')).map(cb => cb.value);
         let dests = Array.from(document.querySelectorAll('.destination-cb:checked')).map(cb => cb.value);
         let contents = Array.from(document.querySelectorAll('.content_type-cb:checked')).map(cb => cb.value);
         
+        if (subCats.length === 0) return alert("Vui lòng chọn ít nhất 1 Phân loại!");
         if (dests.length === 0) return alert("Vui lòng chọn ít nhất 1 Nơi gửi!");
         if (contents.length === 0) return alert("Vui lòng chọn ít nhất 1 Phân loại nội dung!");
 
@@ -465,9 +452,9 @@
             title: document.getElementById('title').value,
             author: document.getElementById('author').value,
             category: document.getElementById('category').value,
-            sub_category: document.getElementById('sub_category').value,
+            sub_category: subCats.join(', '),
             destinations: dests.join(', '),
-            content_types: contents.join(', ') // Đổi thành content_types khớp với Database
+            content_types: contents.join(', ')
         };
 
         const btn = document.getElementById('submitBtn');
@@ -477,18 +464,18 @@
 
         try {
             if (editingId) {
-                const { error } = await supabase.from('posts').update(postData).eq('id', editingId);
+                const { error } = await supabaseClient.from('posts').update(postData).eq('id', editingId);
                 if (error) throw error;
                 alert("Đã cập nhật dữ liệu thành công!");
             } else {
-                const { error } = await supabase.from('posts').insert([postData]);
+                const { error } = await supabaseClient.from('posts').insert([postData]);
                 if (error) throw error;
                 alert("Đã thêm mới tin bài thành công!");
             }
             
             resetForm();
-            await fetchPosts(); // Reload dữ liệu
-            document.getElementById('pills-list-tab').click(); // Sang tab Danh sách
+            await fetchPosts();
+            document.getElementById('pills-list-tab').click(); 
         } catch (error) {
             console.error('Lỗi khi lưu:', error);
             alert("Lỗi lưu dữ liệu: " + (error.message || JSON.stringify(error)));
@@ -501,7 +488,6 @@
     function resetForm() {
         document.getElementById('postForm').reset();
         initDate();
-        renderSubCategories();
         document.querySelectorAll('.form-check-input').forEach(cb => cb.checked = false);
         editingId = null;
         document.getElementById('submitBtn').innerHTML = '<i class="fas fa-save me-2"></i>LƯU DỮ LIỆU';
@@ -517,8 +503,11 @@
         document.getElementById('title').value = post.title;
         document.getElementById('author').value = post.author;
         document.getElementById('category').value = post.category;
-        renderSubCategories(); 
-        document.getElementById('sub_category').value = post.sub_category;
+
+        const subCatArr = (post.sub_category || "").split(', ');
+        document.querySelectorAll('.sub_category-cb').forEach(cb => {
+            cb.checked = subCatArr.includes(cb.value);
+        });
 
         const destArr = post.destinations.split(', ');
         document.querySelectorAll('.destination-cb').forEach(cb => {
@@ -541,7 +530,7 @@
     async function deletePost(id) {
         if(confirm("Bạn có chắc chắn muốn xóa tin bài này? Thao tác không thể hoàn tác.")) {
             try {
-                const { error } = await supabase.from('posts').delete().eq('id', id);
+                const { error } = await supabaseClient.from('posts').delete().eq('id', id);
                 if (error) throw error;
                 await fetchPosts();
             } catch (error) {
@@ -554,7 +543,7 @@
     async function clearData() {
         if(confirm("Lưu ý: Thao tác này sẽ xóa toàn bộ dữ liệu tin bài trên CSDL Máy chủ. Bạn có chắc chắn?")) {
             try {
-                const { error } = await supabase.from('posts').delete().neq('id', 0); // Xóa tất cả record
+                const { error } = await supabaseClient.from('posts').delete().neq('id', 0);
                 if (error) throw error;
                 await fetchPosts();
             } catch(e) { 
@@ -719,7 +708,6 @@
     // --- CHẠY KHI TẢI TRANG ---
     window.onload = function() {
         initDate();
-        renderSubCategories();
         renderCheckboxes('destination');
         renderCheckboxes('content_type');
         fetchPosts(); // Load dữ liệu online

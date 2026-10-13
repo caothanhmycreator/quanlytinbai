@@ -125,7 +125,7 @@
 <div class="container-fluid px-lg-5">
     <!-- Header -->
     <header class="app-header fade-in">
-        <img src="z7371622701987_bb477cf327a5516de8f133c5d66e53d0.jpg" alt="Logo Công an" class="logo-img">
+        <img src="conganhieu.jpg" alt="Logo Công an" class="logo-img">
         <div class="header-title">
             <h2>Hệ thống Quản lý đăng tải tin bài</h2>
             <h5>Đơn vị: Đội Tuyên truyền, giáo dục</h5>
@@ -335,7 +335,10 @@
 <script>
     // --- KẾT NỐI SUPABASE ---
     const SUPABASE_URL = 'https://kgqijxdbcdxbwpdilbub.supabase.co';
+    
+    // YÊU CẦU: XÓA dòng chữ bên dưới và dán MÃ CỦA BẠN vào giữa 2 dấu nháy đơn
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtncWlqeGRiY2R4YndwZGlsYnViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4Mzg5MjMsImV4cCI6MjEwNzQxNDkyM30.E1t5K-5-60ZSz5FuvjwsntB0byroVvym34OWKIXCrQU';
+    
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // --- KHỞI TẠO DỮ LIỆU TĨNH ---
@@ -359,7 +362,11 @@
                 .select('*')
                 .order('publish_date', { ascending: false });
 
-            if (error) throw error;
+            // Bắt lỗi rành mạch từ Supabase
+            if (error) {
+                console.error("Lỗi từ Supabase:", error);
+                throw error;
+            }
             
             posts = data || [];
             renderTable();
@@ -368,7 +375,16 @@
             }
         } catch (error) {
             console.error('Lỗi khi tải dữ liệu:', error);
-            alert("Lỗi kết nối CSDL: Vui lòng kiểm tra lại Key Supabase hoặc cấu hình RLS.");
+            // In chi tiết lỗi ra màn hình để chẩn đoán
+            const errorMsg = error.message || error.error_description || JSON.stringify(error);
+            document.getElementById('dataTableBody').innerHTML = `
+                <tr>
+                    <td colspan="9" class="text-center text-danger py-4">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-2"></i><br>
+                        <strong>KẾT NỐI THẤT BẠI</strong><br>
+                        <small>Chi tiết lỗi: ${errorMsg}</small>
+                    </td>
+                </tr>`;
         }
     }
 
@@ -475,7 +491,7 @@
             document.getElementById('pills-list-tab').click(); // Sang tab Danh sách
         } catch (error) {
             console.error('Lỗi khi lưu:', error);
-            alert("Lỗi lưu dữ liệu: " + error.message);
+            alert("Lỗi lưu dữ liệu: " + (error.message || JSON.stringify(error)));
         } finally {
             btn.disabled = false;
             btn.innerHTML = oldBtnHTML;

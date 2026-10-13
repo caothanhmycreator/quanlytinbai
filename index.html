@@ -8,8 +8,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -112,6 +110,9 @@
         
         .fade-in { animation: fadeIn 0.5s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* List group stats */
+        .list-group-item { display: flex; justify-content: space-between; align-items: center; border-color: #f0f0f0; }
 
         @media (max-width: 768px) {
             .header-title h2 { font-size: 1.5rem; }
@@ -253,20 +254,20 @@
 
         <!-- TAB 3: BÁO CÁO THỐNG KÊ -->
         <div class="tab-pane fade" id="pills-report" role="tabpanel">
-            <div class="card mb-4">
-                <div class="card-header"><i class="fas fa-filter me-2"></i>Bộ Lọc Báo Cáo</div>
+            <div class="card mb-4 border-0 shadow-sm">
+                <div class="card-header bg-white"><i class="fas fa-filter me-2 text-primary"></i>Bộ Lọc Báo Cáo</div>
                 <div class="card-body">
                     <div class="row g-3 align-items-end">
                         <div class="col-md-2">
-                            <label class="form-label small">Từ ngày</label>
+                            <label class="form-label small text-muted fw-bold">Từ ngày</label>
                             <input type="date" class="form-control form-control-sm" id="filter_date_from">
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label small">Đến ngày</label>
+                            <label class="form-label small text-muted fw-bold">Đến ngày</label>
                             <input type="date" class="form-control form-control-sm" id="filter_date_to">
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label small">Thể loại</label>
+                            <label class="form-label small text-muted fw-bold">Thể loại</label>
                             <select class="form-select form-select-sm" id="filter_category">
                                 <option value="All">Tất cả</option>
                                 <option value="Tin">Tin</option>
@@ -274,36 +275,49 @@
                                 <option value="Video">Video</option>
                             </select>
                         </div>
-                        <div class="col-md-4 pt-2">
-                            <button class="btn btn-sm btn-outline-secondary rounded-pill me-1" onclick="setFilterRange('today')">Hôm nay</button>
-                            <button class="btn btn-sm btn-outline-secondary rounded-pill me-1" onclick="setFilterRange('week')">Tuần này</button>
-                            <button class="btn btn-sm btn-outline-secondary rounded-pill me-1" onclick="setFilterRange('month')">Tháng này</button>
-                            <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="setFilterRange('year')">Năm nay</button>
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted fw-bold">Tìm kiếm (Tác giả / Tên bài)</label>
+                            <input type="text" class="form-control form-control-sm" id="filter_search" placeholder="Nhập từ khóa...">
                         </div>
                         <div class="col-md-2 text-end">
                             <button class="btn btn-green btn-sm w-100" onclick="applyFilters()"><i class="fas fa-search me-2"></i>Lọc dữ liệu</button>
                         </div>
                     </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill me-1" onclick="setFilterRange('today')">Hôm nay</button>
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill me-1" onclick="setFilterRange('week')">Tuần này</button>
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill me-1" onclick="setFilterRange('month')">Tháng này</button>
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="setFilterRange('year')">Năm nay</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="card h-100">
-                        <div class="card-header">Năng suất theo Tác giả</div>
-                        <div class="card-body"><canvas id="authorChart"></canvas></div>
+            <!-- Vùng hiển thị số liệu thống kê -->
+            <div class="row mb-4">
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100 border-success shadow-sm">
+                        <div class="card-header text-white" style="background-color: var(--main-green);"><i class="fas fa-chart-bar me-2"></i>Tổng quan Số lượng</div>
+                        <div class="card-body" id="stat_category">
+                            <!-- Render bằng JS -->
+                        </div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="card h-100">
-                        <div class="card-header">Cơ cấu Thể loại</div>
-                        <div class="card-body"><canvas id="categoryChart"></canvas></div>
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100 border-primary shadow-sm">
+                        <div class="card-header bg-primary text-white"><i class="fas fa-users me-2"></i>Theo Tác giả</div>
+                        <div class="card-body p-0" style="max-height: 250px; overflow-y: auto;">
+                            <ul class="list-group list-group-flush" id="stat_author"></ul>
+                        </div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="card h-100">
-                        <div class="card-header">Nơi gửi phổ biến</div>
-                        <div class="card-body"><canvas id="destinationChart"></canvas></div>
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100 border-info shadow-sm">
+                        <div class="card-header bg-info text-white"><i class="fas fa-share-alt me-2"></i>Theo Nơi gửi</div>
+                        <div class="card-body p-0" style="max-height: 250px; overflow-y: auto;">
+                            <ul class="list-group list-group-flush" id="stat_destination"></ul>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -399,8 +413,35 @@
         return [...new Set([...defaults, ...customs])]; 
     }
 
+    // Xóa mục phân loại tự chế
+    function deleteCustomItem(type, itemVal) {
+        if(confirm(`Bạn có chắc muốn xóa phân loại "${itemVal}" khỏi danh sách chọn?`)) {
+            let customArr = JSON.parse(localStorage.getItem(`custom_${type}s`)) || [];
+            customArr = customArr.filter(i => i !== itemVal);
+            localStorage.setItem(`custom_${type}s`, JSON.stringify(customArr));
+            renderCheckboxes(type);
+        }
+    }
+
+    // Sửa mục phân loại tự chế
+    function editCustomItem(type, oldVal) {
+        let newVal = prompt("Nhập tên mới cho phân loại:", oldVal);
+        if(newVal && newVal.trim() !== "" && newVal !== oldVal) {
+            let customArr = JSON.parse(localStorage.getItem(`custom_${type}s`)) || [];
+            let idx = customArr.indexOf(oldVal);
+            if(idx !== -1) {
+                customArr[idx] = newVal.trim();
+                localStorage.setItem(`custom_${type}s`, JSON.stringify(customArr));
+                renderCheckboxes(type);
+            }
+        }
+    }
+
     function renderCheckboxes(type) {
-        const dataArr = getMergedData(type);
+        let defaults = type === 'destination' ? defaultDestinations : defaultContentTypes;
+        let customs = JSON.parse(localStorage.getItem(`custom_${type}s`)) || [];
+        const dataArr = [...new Set([...defaults, ...customs])]; 
+        
         const containerId = type === 'destination' ? 'destination_container' : 'content_type_container';
         const container = document.getElementById(containerId);
         
@@ -409,12 +450,25 @@
         container.innerHTML = '';
         dataArr.forEach(item => {
             const isChecked = currentChecked.includes(item) ? 'checked' : '';
+            const isCustom = customs.includes(item); // Chỉ hiện nút sửa/xóa với thẻ custom
+            
+            let btnActionHtml = '';
+            if (isCustom) {
+                btnActionHtml = `
+                    <div class="position-absolute end-0 top-50 translate-middle-y pe-2" style="z-index: 10;">
+                        <i class="fas fa-pen text-primary me-2" style="cursor:pointer; font-size:0.8rem" onclick="editCustomItem('${type}', '${item}')" title="Sửa"></i>
+                        <i class="fas fa-times text-danger" style="cursor:pointer; font-size:0.9rem" onclick="deleteCustomItem('${type}', '${item}')" title="Xóa"></i>
+                    </div>
+                `;
+            }
+
             container.innerHTML += `
-                <div class="col-12 col-sm-6 col-xl-4 checkbox-col">
-                    <label class="custom-check-box" title="${item}">
+                <div class="col-12 col-sm-6 col-xl-4 checkbox-col position-relative">
+                    <label class="custom-check-box w-100" style="${isCustom ? 'padding-right: 45px;' : ''}" title="${item}">
                         <input class="form-check-input me-2 ${type}-cb" type="checkbox" value="${item}" ${isChecked}>
-                        <span class="form-check-label" style="font-size:0.9rem">${item}</span>
+                        <span class="form-check-label text-truncate" style="font-size:0.9rem">${item}</span>
                     </label>
+                    ${btnActionHtml}
                 </div>`;
         });
     }
@@ -443,7 +497,7 @@
         let dests = Array.from(document.querySelectorAll('.destination-cb:checked')).map(cb => cb.value);
         let contents = Array.from(document.querySelectorAll('.content_type-cb:checked')).map(cb => cb.value);
         
-        if (subCats.length === 0) return alert("Vui lòng chọn ít nhất 1 Phân loại!");
+        if (subCats.length === 0) return alert("Vui lòng chọn ít nhất 1 Phân loại (Báo in/Phát thanh...)!");
         if (dests.length === 0) return alert("Vui lòng chọn ít nhất 1 Nơi gửi!");
         if (contents.length === 0) return alert("Vui lòng chọn ít nhất 1 Phân loại nội dung!");
 
@@ -589,8 +643,6 @@
     }
 
     // --- THỐNG KÊ BÁO CÁO & BẢNG LỌC ---
-    let charts = {};
-
     function setFilterRange(type) {
         const today = new Date();
         const yyyy = today.getFullYear();
@@ -619,17 +671,75 @@
         const from = document.getElementById('filter_date_from').value;
         const to = document.getElementById('filter_date_to').value;
         const cat = document.getElementById('filter_category').value;
+        const searchTxt = document.getElementById('filter_search').value.toLowerCase().trim();
 
         let filtered = posts.filter(p => {
             let pDate = p.publish_date || p.date;
+            
             let passDate = true;
             if(from && pDate < from) passDate = false;
             if(to && pDate > to) passDate = false;
+            
             let passCat = (cat === 'All' || p.category === cat);
-            return passDate && passCat;
+            
+            let passSearch = true;
+            if (searchTxt) {
+                let sTitle = (p.title || "").toLowerCase();
+                let sAuthor = (p.author || "").toLowerCase();
+                if (!sTitle.includes(searchTxt) && !sAuthor.includes(searchTxt)) {
+                    passSearch = false;
+                }
+            }
+
+            return passDate && passCat && passSearch;
         });
-        renderCharts(filtered);
+
+        renderStats(filtered);
         renderFilteredTable(filtered);
+    }
+
+    function renderStats(dataArray) {
+        let total = dataArray.length;
+        let categoryCounts = {'Tin': 0, 'Bài': 0, 'Video': 0};
+        let authorCounts = {};
+        let destCounts = {};
+
+        dataArray.forEach(p => {
+            categoryCounts[p.category] = (categoryCounts[p.category] || 0) + 1;
+            
+            authorCounts[p.author] = (authorCounts[p.author] || 0) + 1;
+            
+            if(p.destinations) {
+                p.destinations.split(', ').forEach(d => {
+                    let trimmed = d.trim();
+                    if(trimmed) destCounts[trimmed] = (destCounts[trimmed] || 0) + 1;
+                });
+            }
+        });
+
+        // 1. Tổng quan số lượng
+        document.getElementById('stat_category').innerHTML = `
+            <h3 class="text-center text-success mb-3 fw-bold">Tổng lượt gửi: ${total}</h3>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item">Số lượng Tin <span class="badge bg-secondary rounded-pill">${categoryCounts['Tin']}</span></li>
+                <li class="list-group-item">Số lượng Bài <span class="badge bg-secondary rounded-pill">${categoryCounts['Bài']}</span></li>
+                <li class="list-group-item">Số lượng Video <span class="badge bg-secondary rounded-pill">${categoryCounts['Video']}</span></li>
+            </ul>
+        `;
+
+        // 2. Tác giả
+        let authorHtml = '';
+        Object.keys(authorCounts).sort((a,b)=>authorCounts[b]-authorCounts[a]).forEach(author => {
+            authorHtml += `<li class="list-group-item">${author} <span class="badge bg-primary rounded-pill">${authorCounts[author]}</span></li>`;
+        });
+        document.getElementById('stat_author').innerHTML = authorHtml || '<li class="list-group-item text-muted">Không có dữ liệu</li>';
+
+        // 3. Nơi gửi
+        let destHtml = '';
+        Object.keys(destCounts).sort((a,b)=>destCounts[b]-destCounts[a]).forEach(dest => {
+            destHtml += `<li class="list-group-item">${dest} <span class="badge bg-info rounded-pill">${destCounts[dest]}</span></li>`;
+        });
+        document.getElementById('stat_destination').innerHTML = destHtml || '<li class="list-group-item text-muted">Không có dữ liệu</li>';
     }
 
     function renderFilteredTable(dataArray) {
@@ -656,61 +766,15 @@
         });
     }
 
-    function renderCharts(dataArray) {
-        let authorCounts = {};
-        let categoryCounts = {};
-        let destCounts = {};
-
-        dataArray.forEach(p => {
-            authorCounts[p.author] = (authorCounts[p.author] || 0) + 1;
-            categoryCounts[p.category] = (categoryCounts[p.category] || 0) + 1;
-            
-            if(p.destinations) {
-                p.destinations.split(', ').forEach(d => {
-                    destCounts[d] = (destCounts[d] || 0) + 1;
-                });
-            }
-        });
-
-        Object.values(charts).forEach(c => c.destroy());
-
-        charts.author = new Chart(document.getElementById('authorChart'), {
-            type: 'bar',
-            data: {
-                labels: Object.keys(authorCounts),
-                datasets: [{ label: 'Số bài', data: Object.values(authorCounts), backgroundColor: '#1b5e20', borderRadius: 5 }]
-            },
-            options: { responsive: true, plugins: { legend: {display: false} } }
-        });
-
-        charts.category = new Chart(document.getElementById('categoryChart'), {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(categoryCounts),
-                datasets: [{ data: Object.values(categoryCounts), backgroundColor: ['#b71c1c', '#1b5e20', '#ff9800'] }]
-            },
-            options: { responsive: true }
-        });
-
-        let sortedDest = Object.entries(destCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
-        charts.destination = new Chart(document.getElementById('destinationChart'), {
-            type: 'bar',
-            data: {
-                labels: sortedDest.map(x=>x[0]),
-                datasets: [{ label: 'Lượt xuất hiện', data: sortedDest.map(x=>x[1]), backgroundColor: '#3f51b5' }]
-            },
-            options: { indexAxis: 'y', responsive: true, plugins: { legend: {display: false} } }
-        });
-    }
-
     document.getElementById('pills-report-tab').addEventListener('shown.bs.tab', applyFilters);
+    document.getElementById('filter_search').addEventListener('input', applyFilters);
 
     // --- CHẠY KHI TẢI TRANG ---
     window.onload = function() {
         initDate();
         renderCheckboxes('destination');
         renderCheckboxes('content_type');
-        fetchPosts(); // Load dữ liệu online
+        fetchPosts(); 
     };
 </script>
 </body>

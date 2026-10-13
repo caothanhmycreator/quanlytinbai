@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Quản lý đăng tải tin bài</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --main-green: #1b5e20; /* Xanh lá đậm */
+            --main-red: #b71c1c;   /* Đỏ đậm */
+            --bg-color: #f4f7f6;
+        }
+        body { 
+            background-color: var(--bg-color); 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+            overflow-x: hidden;
+        }
+        
+        /* Header Styling */
+        .app-header {
+            background: linear-gradient(135deg, var(--main-green) 0%, #2e7d32 100%);
+            color: white;
+            border-radius: 0 0 30px 30px;
+            padding: 15px 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 20px rgba(27, 94, 32, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .logo-img { height: 80px; object-fit: contain; filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.3)); }
+        .header-title { text-align: center; flex-grow: 1; }
+        .header-title h2 { font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 1px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .header-title h5 { margin-top: 5px; opacity: 0.9; }
+        .designer-info { text-align: right; background: rgba(0,0,0,0.2); padding: 10px 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); }
+
+        /* Card & UI Elements */
+        .card {
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        .card:hover { box-shadow: 0 15px 35px rgba(0,0,0,0.1); transform: translateY(-3px); }
+        .card-header {
+            background-color: #fff;
+            border-bottom: 2px solid #f0f0f0;
+            font-weight: 700;
+            color: var(--main-green);
+            padding: 20px;
+            font-size: 1.1rem;
+        }
+        
+        /* Tabs */
+        .nav-pills .nav-link {
+            color: #555;
+            border-radius: 30px;
+            padding: 10px 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 0 5px;
+        }
+        .nav-pills .nav-link.active { background-color: var(--main-red); color: white; box-shadow: 0 4px 10px rgba(183, 28, 28, 0.4); }
+        .nav-pills .nav-link:hover:not(.active) { background-color: rgba(183, 28, 28, 0.1); color: var(--main-red); }
+
+        /* Buttons & Inputs */
+        .form-control, .form-select { border-radius: 12px; padding: 10px 15px; border: 1px solid #ddd; transition: border-color 0.3s; }
+        .form-control:focus, .form-select:focus { border-color: var(--main-green); box-shadow: 0 0 0 0.25rem rgba(27, 94, 32, 0.25); }
+        .btn-green { background-color: var(--main-green); color: white; border-radius: 25px; padding: 10px 25px; font-weight: 600; border: none; transition: all 0.3s; }
+        .btn-green:hover { background-color: #144d18; color: white; transform: scale(1.05); }
+        .btn-red { background-color: var(--main-red); color: white; border-radius: 25px; padding: 10px 25px; font-weight: 600; border: none; transition: all 0.3s; }
+        .btn-red:hover { background-color: #881212; color: white; transform: scale(1.05); }
+        
+        /* Custom Checkbox */
+        .custom-check-box {
+            background: #fff;
+            border: 1px solid #eee;
+            padding: 8px 15px;
+            border-radius: 10px;
+            margin-bottom: 0;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            height: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .custom-check-box:hover { border-color: var(--main-green); background: #f8fdf8; }
+        .form-check-input:checked + .form-check-label { font-weight: bold; color: var(--main-green); }
+        .form-check-input:checked { background-color: var(--main-green); border-color: var(--main-green); }
+        .checkbox-col { display: flex; flex-direction: column; }
+        .add-new-group { display: flex; gap: 10px; margin-top: 15px; }
+        .add-new-group input { border-radius: 20px; }
+        .add-new-group button { border-radius: 20px; white-space: nowrap; }
+        .table { vertical-align: middle; }
+        .table th { background-color: #f8f9fa; color: var(--main-green); border-bottom: 2px solid var(--main-green); }
+        
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 768px) {
+            .header-title h2 { font-size: 1.5rem; }
+            .designer-info { text-align: center; width: 100%; margin-top: 10px; }
+            .nav-pills .nav-link { margin-bottom: 5px; width: 100%; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid px-lg-5">
+    <!-- Header -->
+    <header class="app-header fade-in">
+        <img src="z7371622701987_bb477cf327a5516de8f133c5d66e53d0.jpg" alt="Logo Công an" class="logo-img">
+        <div class="header-title">
+            <h2>Hệ thống Quản lý đăng tải tin bài</h2>
+            <h5>Đơn vị: Đội Tuyên truyền, giáo dục</h5>
+        </div>
+        <div class="designer-info">
+            <small style="color: #ddd;">Designer & Developer:</small><br>
+            <span style="font-size: 1.1rem; font-weight: bold;">Cao Thanh Mỹ</span>
+        </div>
+    </header>
+    
+    <!-- Tab Navigation -->
+    <ul class="nav nav-pills mb-4 justify-content-center fade-in" id="pills-tab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="pills-form-tab" data-bs-toggle="pill" data-bs-target="#pills-form" type="button"><i class="fas fa-edit me-2"></i>Nhập liệu</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="pills-list-tab" data-bs-toggle="pill" data-bs-target="#pills-list" type="button"><i class="fas fa-list me-2"></i>Danh sách Tin/Bài</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="pills-report-tab" data-bs-toggle="pill" data-bs-target="#pills-report" type="button"><i class="fas fa-chart-pie me-2"></i>Báo cáo Thống kê</button>
+        </li>
+    </ul>
+
+    <div class="tab-content fade-in" id="pills-tabContent">
+        <!-- TAB 1: NHẬP LIỆU -->
+        <div class="tab-pane fade show active" id="pills-form" role="tabpanel">
+            <div class="card mx-auto" style="max-width: 1200px;">
+                <div class="card-header"><i class="fas fa-plus-circle me-2"></i>Form Thông Tin Tác Phẩm</div>
+                <div class="card-body p-4">
+                    <form id="postForm">
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Ngày đăng <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="publish_date" required>
+                            </div>
+                            <div class="col-md-9">
+                                <label class="form-label fw-bold">Nội dung / Tiêu đề <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="title" placeholder="Nhập tiêu đề tin bài..." required>
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Tác giả <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="author" placeholder="Tên tác giả..." required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Thể loại <span class="text-danger">*</span></label>
+                                <select class="form-select" id="category" required>
+                                    <option value="Tin">Tin</option>
+                                    <option value="Bài">Bài</option>
+                                    <option value="Video">Video</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Phân loại <span class="text-danger">*</span></label>
+                                <select class="form-select" id="sub_category" required>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <!-- NƠI GỬI -->
+                            <div class="col-md-6 mb-3 mb-md-0">
+                                <label class="form-label fw-bold text-success border-bottom pb-2 w-100"><i class="fas fa-paper-plane me-2"></i>Nơi gửi (Chọn nhiều)</label>
+                                <div class="row g-2" id="destination_container"></div>
+                                <div class="add-new-group">
+                                    <input type="text" id="new_dest_input" class="form-control form-control-sm" placeholder="Thêm nơi gửi mới...">
+                                    <button type="button" class="btn btn-sm btn-outline-success" onclick="addNewItem('destination')"><i class="fas fa-plus"></i></button>
+                                </div>
+                            </div>
+                            
+                            <!-- PHÂN LOẠI NỘI DUNG -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-danger border-bottom pb-2 w-100"><i class="fas fa-tags me-2"></i>Phân loại nội dung (Chọn nhiều)</label>
+                                <div class="row g-2" id="content_type_container"></div>
+                                <div class="add-new-group">
+                                    <input type="text" id="new_type_input" class="form-control form-control-sm" placeholder="Thêm phân loại mới...">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="addNewItem('content_type')"><i class="fas fa-plus"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mt-4 pt-3 border-top">
+                            <button type="button" class="btn btn-secondary rounded-pill px-4 me-2" onclick="resetForm()">Làm mới</button>
+                            <button type="submit" class="btn btn-green px-5" id="submitBtn"><i class="fas fa-save me-2"></i>LƯU DỮ LIỆU</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: DANH SÁCH -->
+        <div class="tab-pane fade" id="pills-list" role="tabpanel">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-list-alt me-2"></i>Danh sách dữ liệu</span>
+                    <button class="btn btn-sm btn-danger rounded-pill" onclick="clearData()"><i class="fas fa-trash-alt me-2"></i>Xóa toàn bộ</button>
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="table table-hover text-center align-middle" style="white-space: nowrap;">
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>Ngày đăng</th>
+                                <th>Tác giả</th>
+                                <th class="text-start">Nội dung</th>
+                                <th>Thể loại</th>
+                                <th>Phân loại</th>
+                                <th class="text-start">Nơi gửi</th>
+                                <th class="text-start">Nội dung (Tag)</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody">
+                            <tr><td colspan="9" class="text-center text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Đang tải dữ liệu từ server...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: BÁO CÁO THỐNG KÊ -->
+        <div class="tab-pane fade" id="pills-report" role="tabpanel">
+            <div class="card mb-4">
+                <div class="card-header"><i class="fas fa-filter me-2"></i>Bộ Lọc Báo Cáo</div>
+                <div class="card-body">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-2">
+                            <label class="form-label small">Từ ngày</label>
+                            <input type="date" class="form-control form-control-sm" id="filter_date_from">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Đến ngày</label>
+                            <input type="date" class="form-control form-control-sm" id="filter_date_to">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Thể loại</label>
+                            <select class="form-select form-select-sm" id="filter_category">
+                                <option value="All">Tất cả</option>
+                                <option value="Tin">Tin</option>
+                                <option value="Bài">Bài</option>
+                                <option value="Video">Video</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 pt-2">
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill me-1" onclick="setFilterRange('today')">Hôm nay</button>
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill me-1" onclick="setFilterRange('week')">Tuần này</button>
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill me-1" onclick="setFilterRange('month')">Tháng này</button>
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="setFilterRange('year')">Năm nay</button>
+                        </div>
+                        <div class="col-md-2 text-end">
+                            <button class="btn btn-green btn-sm w-100" onclick="applyFilters()"><i class="fas fa-search me-2"></i>Lọc dữ liệu</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-header">Năng suất theo Tác giả</div>
+                        <div class="card-body"><canvas id="authorChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-header">Cơ cấu Thể loại</div>
+                        <div class="card-body"><canvas id="categoryChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-header">Nơi gửi phổ biến</div>
+                        <div class="card-body"><canvas id="destinationChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bảng danh sách dữ liệu lọc -->
+            <div class="card mt-4">
+                <div class="card-header"><i class="fas fa-list me-2"></i>Danh sách tin bài theo bộ lọc hiện tại</div>
+                <div class="card-body table-responsive">
+                    <table class="table table-hover text-center align-middle" style="white-space: nowrap;">
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>Ngày đăng</th>
+                                <th>Tác giả</th>
+                                <th class="text-start">Nội dung</th>
+                                <th>Thể loại</th>
+                                <th>Phân loại</th>
+                                <th class="text-start">Nơi gửi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="filteredTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    // --- KẾT NỐI SUPABASE ---
+    const SUPABASE_URL = 'https://kgqijxdbcdxbwpdilbub.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtncWlqeGRiY2R4YndwZGlsYnViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4Mzg5MjMsImV4cCI6MjEwNzQxNDkyM30.E1t5K-5-60ZSz5FuvjwsntB0byroVvym34OWKIXCrQU';
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // --- KHỞI TẠO DỮ LIỆU TĨNH ---
+    const defaultDestinations = ['Trang TTĐT', 'Báo ĐT', 'THĐT', 'PTĐT', 'Web Tỉnh ủy', 'Web TBND', 'Báo CAND', 'ANTV', 'Tuổi Trẻ', 'Người LĐ'];
+    const defaultContentTypes = ['An ninh', 'Phòng chống tội phạm', 'Quản lý hành chính', 'PCCC', 'Giao thông', 'XDLL', 'Phong trào', 'Chuyển đổi số', 'Cải cách hành chính'];
+    
+    const subCategoryMapping = {
+        'Tin': ['Tin báo in', 'Tin phát thanh', 'Tin truyền hình', 'Tin báo điện tử'],
+        'Bài': ['Bài báo in', 'Phóng sự phát thanh', 'Phóng sự truyền hình', 'Bài báo điện tử'],
+        'Video': ['Video Facebook', 'Video Youtube']
+    };
+
+    let posts = []; // Dữ liệu sẽ load từ Server
+    let editingId = null; 
+
+    // --- GỌI DỮ LIỆU TỪ SERVER ---
+    async function fetchPosts() {
+        try {
+            const { data, error } = await supabase
+                .from('posts')
+                .select('*')
+                .order('publish_date', { ascending: false });
+
+            if (error) throw error;
+            
+            posts = data || [];
+            renderTable();
+            if (document.getElementById('pills-report').classList.contains('active')) {
+                applyFilters();
+            }
+        } catch (error) {
+            console.error('Lỗi khi tải dữ liệu:', error);
+            alert("Lỗi kết nối CSDL: Vui lòng kiểm tra lại Key Supabase hoặc cấu hình RLS.");
+        }
+    }
+
+    // --- XỬ LÝ GIAO DIỆN FORM ---
+    function initDate() {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        document.getElementById('publish_date').value = `${yyyy}-${mm}-${dd}`;
+    }
+
+    function renderSubCategories() {
+        const cat = document.getElementById('category').value;
+        const subCatSelect = document.getElementById('sub_category');
+        subCatSelect.innerHTML = '';
+        subCategoryMapping[cat].forEach(sub => {
+            subCatSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
+        });
+    }
+
+    function getMergedData(type) {
+        let defaults = type === 'destination' ? defaultDestinations : defaultContentTypes;
+        let customs = JSON.parse(localStorage.getItem(`custom_${type}s`)) || [];
+        return [...new Set([...defaults, ...customs])]; 
+    }
+
+    function renderCheckboxes(type) {
+        const dataArr = getMergedData(type);
+        const containerId = type === 'destination' ? 'destination_container' : 'content_type_container';
+        const container = document.getElementById(containerId);
+        
+        const currentChecked = Array.from(document.querySelectorAll(`.${type}-cb:checked`)).map(cb => cb.value);
+        
+        container.innerHTML = '';
+        dataArr.forEach(item => {
+            const isChecked = currentChecked.includes(item) ? 'checked' : '';
+            container.innerHTML += `
+                <div class="col-12 col-sm-6 col-xl-4 checkbox-col">
+                    <label class="custom-check-box" title="${item}">
+                        <input class="form-check-input me-2 ${type}-cb" type="checkbox" value="${item}" ${isChecked}>
+                        <span class="form-check-label" style="font-size:0.9rem">${item}</span>
+                    </label>
+                </div>`;
+        });
+    }
+
+    function addNewItem(type) {
+        const inputId = type === 'destination' ? 'new_dest_input' : 'new_type_input';
+        const input = document.getElementById(inputId);
+        const val = input.value.trim();
+        
+        if(!val) return alert("Vui lòng nhập nội dung!");
+        
+        let customArr = JSON.parse(localStorage.getItem(`custom_${type}s`)) || [];
+        if(!customArr.includes(val) && !getMergedData(type).includes(val)) {
+            customArr.push(val);
+            localStorage.setItem(`custom_${type}s`, JSON.stringify(customArr));
+            renderCheckboxes(type);
+        }
+        input.value = '';
+    }
+
+    document.getElementById('category').addEventListener('change', renderSubCategories);
+
+    // --- LƯU / CẬP NHẬT LÊN SERVER ---
+    document.getElementById('postForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        let dests = Array.from(document.querySelectorAll('.destination-cb:checked')).map(cb => cb.value);
+        let contents = Array.from(document.querySelectorAll('.content_type-cb:checked')).map(cb => cb.value);
+        
+        if (dests.length === 0) return alert("Vui lòng chọn ít nhất 1 Nơi gửi!");
+        if (contents.length === 0) return alert("Vui lòng chọn ít nhất 1 Phân loại nội dung!");
+
+        const postData = {
+            publish_date: document.getElementById('publish_date').value,
+            title: document.getElementById('title').value,
+            author: document.getElementById('author').value,
+            category: document.getElementById('category').value,
+            sub_category: document.getElementById('sub_category').value,
+            destinations: dests.join(', '),
+            content_types: contents.join(', ') // Đổi thành content_types khớp với Database
+        };
+
+        const btn = document.getElementById('submitBtn');
+        const oldBtnHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>ĐANG XỬ LÝ...';
+
+        try {
+            if (editingId) {
+                const { error } = await supabase.from('posts').update(postData).eq('id', editingId);
+                if (error) throw error;
+                alert("Đã cập nhật dữ liệu thành công!");
+            } else {
+                const { error } = await supabase.from('posts').insert([postData]);
+                if (error) throw error;
+                alert("Đã thêm mới tin bài thành công!");
+            }
+            
+            resetForm();
+            await fetchPosts(); // Reload dữ liệu
+            document.getElementById('pills-list-tab').click(); // Sang tab Danh sách
+        } catch (error) {
+            console.error('Lỗi khi lưu:', error);
+            alert("Lỗi lưu dữ liệu: " + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = oldBtnHTML;
+        }
+    });
+
+    function resetForm() {
+        document.getElementById('postForm').reset();
+        initDate();
+        renderSubCategories();
+        document.querySelectorAll('.form-check-input').forEach(cb => cb.checked = false);
+        editingId = null;
+        document.getElementById('submitBtn').innerHTML = '<i class="fas fa-save me-2"></i>LƯU DỮ LIỆU';
+        document.getElementById('submitBtn').classList.replace('btn-danger', 'btn-green');
+    }
+
+    function editPost(id) {
+        const post = posts.find(p => p.id === id);
+        if(!post) return;
+
+        editingId = id;
+        document.getElementById('publish_date').value = post.publish_date || post.date;
+        document.getElementById('title').value = post.title;
+        document.getElementById('author').value = post.author;
+        document.getElementById('category').value = post.category;
+        renderSubCategories(); 
+        document.getElementById('sub_category').value = post.sub_category;
+
+        const destArr = post.destinations.split(', ');
+        document.querySelectorAll('.destination-cb').forEach(cb => {
+            cb.checked = destArr.includes(cb.value);
+        });
+
+        const contArr = (post.content_types || "").split(', ');
+        document.querySelectorAll('.content_type-cb').forEach(cb => {
+            cb.checked = contArr.includes(cb.value);
+        });
+
+        document.getElementById('submitBtn').innerHTML = '<i class="fas fa-sync me-2"></i>CẬP NHẬT';
+        document.getElementById('submitBtn').classList.replace('btn-green', 'btn-danger');
+
+        document.getElementById('pills-form-tab').click();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // --- XÓA DỮ LIỆU TRÊN SERVER ---
+    async function deletePost(id) {
+        if(confirm("Bạn có chắc chắn muốn xóa tin bài này? Thao tác không thể hoàn tác.")) {
+            try {
+                const { error } = await supabase.from('posts').delete().eq('id', id);
+                if (error) throw error;
+                await fetchPosts();
+            } catch (error) {
+                console.error('Lỗi khi xóa:', error);
+                alert("Lỗi xóa dữ liệu.");
+            }
+        }
+    }
+
+    async function clearData() {
+        if(confirm("Lưu ý: Thao tác này sẽ xóa toàn bộ dữ liệu tin bài trên CSDL Máy chủ. Bạn có chắc chắn?")) {
+            try {
+                const { error } = await supabase.from('posts').delete().neq('id', 0); // Xóa tất cả record
+                if (error) throw error;
+                await fetchPosts();
+            } catch(e) { 
+                console.log(e); 
+                alert("Không thể xóa toàn bộ do chính sách bảo mật máy chủ, vui lòng xóa từng bài.");
+            }
+        }
+    }
+
+    // --- BẢNG DỮ LIỆU ---
+    function renderTable() {
+        let tbody = document.getElementById('dataTableBody');
+        tbody.innerHTML = '';
+        if(posts.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Chưa có dữ liệu</td></tr>';
+            return;
+        }
+
+        posts.forEach((post, index) => {
+            let pDate = post.publish_date || post.date; 
+            tbody.innerHTML += `
+            <tr class="fade-in">
+                <td>${index + 1}</td>
+                <td>${formatDate(pDate)}</td>
+                <td class="fw-bold text-success">${post.author}</td>
+                <td class="text-start" style="white-space: normal; min-width: 250px;">${post.title}</td>
+                <td><span class="badge bg-danger">${post.category}</span></td>
+                <td><span class="badge bg-secondary">${post.sub_category}</span></td>
+                <td class="text-start" style="white-space: normal; font-size: 0.85rem">${post.destinations}</td>
+                <td class="text-start" style="white-space: normal; font-size: 0.85rem">${post.content_types}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary rounded-circle" onclick="editPost(${post.id})" title="Sửa"><i class="fas fa-pen"></i></button>
+                    <button class="btn btn-sm btn-outline-danger rounded-circle ms-1" onclick="deletePost(${post.id})" title="Xóa"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>`;
+        });
+    }
+
+    function formatDate(dateStr) {
+        if(!dateStr) return "";
+        const d = new Date(dateStr);
+        return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+    }
+
+    // --- THỐNG KÊ BÁO CÁO & BẢNG LỌC ---
+    let charts = {};
+
+    function setFilterRange(type) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        
+        let fromDate, toDate = `${yyyy}-${mm}-${dd}`;
+
+        if(type === 'today') {
+            fromDate = toDate;
+        } else if(type === 'week') {
+            const firstDay = new Date(today.setDate(today.getDate() - today.getDay() + 1));
+            fromDate = `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, '0')}-${String(firstDay.getDate()).padStart(2, '0')}`;
+        } else if(type === 'month') {
+            fromDate = `${yyyy}-${mm}-01`;
+        } else if(type === 'year') {
+            fromDate = `${yyyy}-01-01`;
+        }
+        
+        document.getElementById('filter_date_from').value = fromDate;
+        document.getElementById('filter_date_to').value = toDate;
+        applyFilters();
+    }
+
+    function applyFilters() {
+        const from = document.getElementById('filter_date_from').value;
+        const to = document.getElementById('filter_date_to').value;
+        const cat = document.getElementById('filter_category').value;
+
+        let filtered = posts.filter(p => {
+            let pDate = p.publish_date || p.date;
+            let passDate = true;
+            if(from && pDate < from) passDate = false;
+            if(to && pDate > to) passDate = false;
+            let passCat = (cat === 'All' || p.category === cat);
+            return passDate && passCat;
+        });
+        renderCharts(filtered);
+        renderFilteredTable(filtered);
+    }
+
+    function renderFilteredTable(dataArray) {
+        let tbody = document.getElementById('filteredTableBody');
+        tbody.innerHTML = '';
+        
+        if(dataArray.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Không có dữ liệu phù hợp với bộ lọc</td></tr>';
+            return;
+        }
+
+        dataArray.forEach((post, index) => {
+            let pDate = post.publish_date || post.date;
+            tbody.innerHTML += `
+            <tr class="fade-in">
+                <td>${index + 1}</td>
+                <td>${formatDate(pDate)}</td>
+                <td class="fw-bold text-success">${post.author}</td>
+                <td class="text-start" style="white-space: normal; min-width: 250px;">${post.title}</td>
+                <td><span class="badge bg-danger">${post.category}</span></td>
+                <td><span class="badge bg-secondary">${post.sub_category}</span></td>
+                <td class="text-start" style="white-space: normal; font-size: 0.85rem">${post.destinations}</td>
+            </tr>`;
+        });
+    }
+
+    function renderCharts(dataArray) {
+        let authorCounts = {};
+        let categoryCounts = {};
+        let destCounts = {};
+
+        dataArray.forEach(p => {
+            authorCounts[p.author] = (authorCounts[p.author] || 0) + 1;
+            categoryCounts[p.category] = (categoryCounts[p.category] || 0) + 1;
+            
+            if(p.destinations) {
+                p.destinations.split(', ').forEach(d => {
+                    destCounts[d] = (destCounts[d] || 0) + 1;
+                });
+            }
+        });
+
+        Object.values(charts).forEach(c => c.destroy());
+
+        charts.author = new Chart(document.getElementById('authorChart'), {
+            type: 'bar',
+            data: {
+                labels: Object.keys(authorCounts),
+                datasets: [{ label: 'Số bài', data: Object.values(authorCounts), backgroundColor: '#1b5e20', borderRadius: 5 }]
+            },
+            options: { responsive: true, plugins: { legend: {display: false} } }
+        });
+
+        charts.category = new Chart(document.getElementById('categoryChart'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(categoryCounts),
+                datasets: [{ data: Object.values(categoryCounts), backgroundColor: ['#b71c1c', '#1b5e20', '#ff9800'] }]
+            },
+            options: { responsive: true }
+        });
+
+        let sortedDest = Object.entries(destCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+        charts.destination = new Chart(document.getElementById('destinationChart'), {
+            type: 'bar',
+            data: {
+                labels: sortedDest.map(x=>x[0]),
+                datasets: [{ label: 'Lượt xuất hiện', data: sortedDest.map(x=>x[1]), backgroundColor: '#3f51b5' }]
+            },
+            options: { indexAxis: 'y', responsive: true, plugins: { legend: {display: false} } }
+        });
+    }
+
+    document.getElementById('pills-report-tab').addEventListener('shown.bs.tab', applyFilters);
+
+    // --- CHẠY KHI TẢI TRANG ---
+    window.onload = function() {
+        initDate();
+        renderSubCategories();
+        renderCheckboxes('destination');
+        renderCheckboxes('content_type');
+        fetchPosts(); // Load dữ liệu online
+    };
+</script>
+</body>
+</html>

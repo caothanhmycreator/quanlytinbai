@@ -275,8 +275,15 @@
                                 <option value="Video">Video</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label small text-muted fw-bold">Tìm kiếm (Tác giả / Tên bài)</label>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted fw-bold">Nội dung</label>
+                            <select class="form-select form-select-sm" id="filter_content_type">
+                                <!-- Khởi tạo bằng JS -->
+                                <option value="All">Tất cả</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted fw-bold">Tìm (Từ khóa)</label>
                             <input type="text" class="form-control form-control-sm" id="filter_search" placeholder="Nhập từ khóa...">
                         </div>
                         <div class="col-md-2 text-end">
@@ -296,27 +303,35 @@
 
             <!-- Vùng hiển thị số liệu thống kê -->
             <div class="row mb-4">
-                <div class="col-md-4 mb-3">
+                <div class="col-md-6 col-lg-3 mb-3">
                     <div class="card h-100 border-success shadow-sm">
-                        <div class="card-header text-white" style="background-color: var(--main-green);"><i class="fas fa-chart-bar me-2"></i>Tổng quan Số lượng</div>
+                        <div class="card-header text-white fw-bold" style="background-color: var(--main-green);"><i class="fas fa-chart-bar me-2"></i>Tổng quan Số lượng</div>
                         <div class="card-body" id="stat_category">
                             <!-- Render bằng JS -->
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 mb-3">
+                <div class="col-md-6 col-lg-3 mb-3">
                     <div class="card h-100 border-primary shadow-sm">
-                        <div class="card-header bg-primary text-white"><i class="fas fa-users me-2"></i>Theo Tác giả</div>
+                        <div class="card-header bg-primary text-white fw-bold"><i class="fas fa-users me-2"></i>Theo Tác giả</div>
                         <div class="card-body p-0" style="max-height: 250px; overflow-y: auto;">
                             <ul class="list-group list-group-flush" id="stat_author"></ul>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 mb-3">
+                <div class="col-md-6 col-lg-3 mb-3">
                     <div class="card h-100 border-info shadow-sm">
-                        <div class="card-header bg-info text-white"><i class="fas fa-share-alt me-2"></i>Theo Nơi gửi</div>
+                        <div class="card-header bg-info text-white fw-bold"><i class="fas fa-share-alt me-2"></i>Theo Nơi gửi</div>
                         <div class="card-body p-0" style="max-height: 250px; overflow-y: auto;">
                             <ul class="list-group list-group-flush" id="stat_destination"></ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <div class="card h-100 shadow-sm" style="border-color: #ff9800">
+                        <div class="card-header text-dark fw-bold" style="background-color: #ff9800"><i class="fas fa-tags me-2"></i>Theo Nội dung</div>
+                        <div class="card-body p-0" style="max-height: 250px; overflow-y: auto;">
+                            <ul class="list-group list-group-flush" id="stat_content_type_list"></ul>
                         </div>
                     </div>
                 </div>
@@ -355,7 +370,7 @@
     const SUPABASE_URL = 'https://kgqijxdbcdxbwpdilbub.supabase.co';
     
     // YÊU CẦU: XÓA dòng chữ bên dưới và dán MÃ CỦA BẠN (bắt đầu bằng eyJ...) vào giữa 2 dấu nháy đơn
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtncWlqeGRiY2R4YndwZGlsYnViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4Mzg5MjMsImV4cCI6MjEwNzQxNDkyM30.E1t5K-5-60ZSz5FuvjwsntB0byroVvym34OWKIXCrQU';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtncWlqeGRiY2R4YndwZGlsYnViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4Mzg5MjMsImV4cCI6MjEwNzQxNDkyM30.E1t5K-5-60ZSz5FuvjwsntB0byroVvym34OWKIXCrQ';
     
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -437,6 +452,15 @@
         }
     }
 
+    function renderFilterContentOptions() {
+        const select = document.getElementById('filter_content_type');
+        const dataArr = getMergedData('content_type');
+        select.innerHTML = '<option value="All">Tất cả</option>';
+        dataArr.forEach(item => {
+            select.innerHTML += `<option value="${item}">${item}</option>`;
+        });
+    }
+
     function renderCheckboxes(type) {
         let defaults = type === 'destination' ? defaultDestinations : defaultContentTypes;
         let customs = JSON.parse(localStorage.getItem(`custom_${type}s`)) || [];
@@ -471,6 +495,11 @@
                     ${btnActionHtml}
                 </div>`;
         });
+
+        // Cập nhật thẻ dropdown ở trang bộ lọc
+        if (type === 'content_type') {
+            renderFilterContentOptions();
+        }
     }
 
     function addNewItem(type) {
@@ -671,6 +700,7 @@
         const from = document.getElementById('filter_date_from').value;
         const to = document.getElementById('filter_date_to').value;
         const cat = document.getElementById('filter_category').value;
+        const contentFilter = document.getElementById('filter_content_type').value;
         const searchTxt = document.getElementById('filter_search').value.toLowerCase().trim();
 
         let filtered = posts.filter(p => {
@@ -682,6 +712,14 @@
             
             let passCat = (cat === 'All' || p.category === cat);
             
+            let passContent = true;
+            if (contentFilter !== 'All') {
+                let pContents = (p.content_types || "").split(', ').map(c => c.trim());
+                if (!pContents.includes(contentFilter)) {
+                    passContent = false;
+                }
+            }
+
             let passSearch = true;
             if (searchTxt) {
                 let sTitle = (p.title || "").toLowerCase();
@@ -691,7 +729,7 @@
                 }
             }
 
-            return passDate && passCat && passSearch;
+            return passDate && passCat && passContent && passSearch;
         });
 
         renderStats(filtered);
@@ -699,27 +737,38 @@
     }
 
     function renderStats(dataArray) {
-        let total = dataArray.length;
+        let totalPosts = dataArray.length;
+        let totalSends = 0;
         let categoryCounts = {'Tin': 0, 'Bài': 0, 'Video': 0};
         let authorCounts = {};
         let destCounts = {};
+        let contentCounts = {}; 
 
         dataArray.forEach(p => {
             categoryCounts[p.category] = (categoryCounts[p.category] || 0) + 1;
-            
             authorCounts[p.author] = (authorCounts[p.author] || 0) + 1;
             
             if(p.destinations) {
-                p.destinations.split(', ').forEach(d => {
+                let dests = p.destinations.split(', ');
+                totalSends += dests.length; // Tổng lượt gửi tất cả các nơi
+                dests.forEach(d => {
                     let trimmed = d.trim();
                     if(trimmed) destCounts[trimmed] = (destCounts[trimmed] || 0) + 1;
+                });
+            }
+
+            if(p.content_types) {
+                p.content_types.split(', ').forEach(c => {
+                    let trimmed = c.trim();
+                    if(trimmed) contentCounts[trimmed] = (contentCounts[trimmed] || 0) + 1;
                 });
             }
         });
 
         // 1. Tổng quan số lượng
         document.getElementById('stat_category').innerHTML = `
-            <h3 class="text-center text-success mb-3 fw-bold">Tổng lượt gửi: ${total}</h3>
+            <h5 class="text-center text-success mb-2 fw-bold">Tổng số tin, bài: ${totalPosts}</h5>
+            <h6 class="text-center text-primary mb-3 fw-bold">Tổng lượt gửi: ${totalSends}</h6>
             <ul class="list-group list-group-flush">
                 <li class="list-group-item">Số lượng Tin <span class="badge bg-secondary rounded-pill">${categoryCounts['Tin']}</span></li>
                 <li class="list-group-item">Số lượng Bài <span class="badge bg-secondary rounded-pill">${categoryCounts['Bài']}</span></li>
@@ -740,6 +789,13 @@
             destHtml += `<li class="list-group-item">${dest} <span class="badge bg-info rounded-pill">${destCounts[dest]}</span></li>`;
         });
         document.getElementById('stat_destination').innerHTML = destHtml || '<li class="list-group-item text-muted">Không có dữ liệu</li>';
+
+        // 4. Theo Nội dung
+        let contentHtml = '';
+        Object.keys(contentCounts).sort((a,b)=>contentCounts[b]-contentCounts[a]).forEach(c => {
+            contentHtml += `<li class="list-group-item">${c} <span class="badge rounded-pill" style="background-color: #ff9800; color: #fff;">${contentCounts[c]}</span></li>`;
+        });
+        document.getElementById('stat_content_type_list').innerHTML = contentHtml || '<li class="list-group-item text-muted">Không có dữ liệu</li>';
     }
 
     function renderFilteredTable(dataArray) {
@@ -768,6 +824,7 @@
 
     document.getElementById('pills-report-tab').addEventListener('shown.bs.tab', applyFilters);
     document.getElementById('filter_search').addEventListener('input', applyFilters);
+    document.getElementById('filter_content_type').addEventListener('change', applyFilters);
 
     // --- CHẠY KHI TẢI TRANG ---
     window.onload = function() {

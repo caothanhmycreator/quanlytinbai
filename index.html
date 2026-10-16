@@ -199,20 +199,24 @@
                             <!-- NƠI GỬI -->
                             <div class="col-md-6 mb-3 mb-md-0">
                                 <label class="form-label fw-bold text-success border-bottom pb-2 w-100"><i class="fas fa-paper-plane me-2"></i>Nơi gửi (Chọn nhiều)</label>
-                                <div class="row g-2" id="destination_container"></div>
+                                <div class="row g-2" id="destination_container">
+                                    <div class="col-12 text-center text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Đang tải CSDL...</div>
+                                </div>
                                 <div class="add-new-group">
                                     <input type="text" id="new_dest_input" class="form-control form-control-sm" placeholder="Thêm nơi gửi mới...">
-                                    <button type="button" class="btn btn-sm btn-outline-success" onclick="addNewItem('destination')"><i class="fas fa-plus"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-success" onclick="addNewItem('destination', this)"><i class="fas fa-plus"></i></button>
                                 </div>
                             </div>
                             
                             <!-- PHÂN LOẠI NỘI DUNG -->
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-danger border-bottom pb-2 w-100"><i class="fas fa-tags me-2"></i>Phân loại nội dung (Chọn nhiều)</label>
-                                <div class="row g-2" id="content_type_container"></div>
+                                <div class="row g-2" id="content_type_container">
+                                    <div class="col-12 text-center text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Đang tải CSDL...</div>
+                                </div>
                                 <div class="add-new-group">
                                     <input type="text" id="new_type_input" class="form-control form-control-sm" placeholder="Thêm phân loại mới...">
-                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="addNewItem('content_type')"><i class="fas fa-plus"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="addNewItem('content_type', this)"><i class="fas fa-plus"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -388,24 +392,19 @@
 <script>
     // --- KẾT NỐI SUPABASE ---
     const SUPABASE_URL = 'https://kgqijxdbcdxbwpdilbub.supabase.co';
+    
+    // YÊU CẦU: Dán MÃ CỦA BẠN (bắt đầu bằng eyJ...) vào giữa 2 dấu nháy đơn
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtncWlqeGRiY2R4YndwZGlsYnViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4Mzg5MjMsImV4cCI6MjEwNzQxNDkyM30.E1t5K-5-60ZSz5FuvjwsntB0byroVvym34OWKIXCrQU';
+    
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // --- KHỞI TẠO DỮ LIỆU CỐ ĐỊNH ---
-    const defaultDestinations = [
-        'Trang CAT', 'Báo ĐT', 'THĐT', 'PTĐT', 'Web Tỉnh ủy', 'Web TBND', 'Báo CAND', 'ANTV', 'Tuổi Trẻ', 'Người LĐ', 
-        'Nhân dân', 'Cổng BCA', 'Facebook', 'Youtube', 'Báo CATPHCM', 'Sống trong lòng dân', 'X03',
-        'CM VANTQ', 'CM ANDS', 'TM ANTT'
-    ];
-    
-    // Đã thay thế và loại bỏ trùng lặp, thống nhất dùng "Công an xã, phường"
-    const defaultContentTypes = [
-        'An ninh', 'PCTP', 'Quản lý hành chính', 'PCCC', 'Giao thông', 'XDLL', 'Phong trào', 'Chuyển đổi số', 'Cải cách hành chính', 
-        'Công an xã, phường', 'Đoàn Hội', 'ANTT sự kiện', 'ANTT cơ sở', 'Ma túy', 'TNXH', 'Kinh tế', 'Môi trường', 'Hình sự'
-    ];
-
+    // --- BIẾN TOÀN CỤC ---
     let posts = []; 
     let editingId = null; 
+
+    // Biến danh mục lấy từ Supabase Master Table
+    let dbDestinations = [];
+    let dbContentTypes = [];
 
     // Biến phân trang
     const itemsPerPage = 50;
@@ -413,23 +412,22 @@
     let filteredReportPosts = [];
     let currentReportPage = 1;
 
-    // Biến quản lý trạng thái Lọc bấm vào bảng Stat
+    // Biến quản lý trạng thái Lọc
     let activeSubFilter = { type: '', value: '' };
 
-    // --- HÀM TÁCH DỮ LIỆU THÔNG MINH ---
+    // --- HÀM TÁCH VÀ CHUẨN HÓA DỮ LIỆU CŨ ---
     function splitData(str) {
         if (!str) return [];
-        // Xử lý dữ liệu chuẩn mới (dùng dấu |)
+        // Nếu đã dùng dấu phân cách chuẩn mới " | "
         if (str.includes(' | ')) {
             return str.split(' | ').map(s => {
                 let trimmed = s.trim();
-                // Tự động gộp chuẩn hóa các tên lỗi cũ
                 if (trimmed === 'CA xã, phường' || trimmed === 'Công an xã' || trimmed === 'CA xã') return 'Công an xã, phường';
                 return trimmed;
             }).filter(Boolean);
         }
         
-        // Xử lý dữ liệu lỗi cũ (dùng dấu phẩy gây đứt câu)
+        // Nếu là dữ liệu cũ dùng dấu phẩy
         let arr = str.split(',').map(s => s.trim()).filter(Boolean);
         for (let i = 0; i < arr.length; i++) {
             if (arr[i] === 'Công an xã' || arr[i] === 'CA xã') {
@@ -437,30 +435,33 @@
                     arr[i] = 'Công an xã, phường';
                     arr.splice(i+1, 1);
                 } else {
-                    arr[i] = 'Công an xã, phường'; // Cứ gặp là ép thành chuẩn
+                    arr[i] = 'Công an xã, phường';
                 }
             }
             if (arr[i] === 'CA xã, phường') arr[i] = 'Công an xã, phường';
         }
-        return [...new Set(arr)]; // Trả về mảng đã loại bỏ trùng lặp
+        return [...new Set(arr)];
     }
 
-    // --- GỌI DỮ LIỆU TỪ SERVER ---
-    async function fetchPosts() {
+    // --- FETCH DATA TỪ SUPABASE ---
+    async function loadInitialData() {
         try {
-            const { data, error } = await supabaseClient
-                .from('posts')
-                .select('*')
-                .order('publish_date', { ascending: false });
+            // Lấy danh mục cố định từ bảng CSDL
+            const [resDest, resCont, resPosts] = await Promise.all([
+                supabaseClient.from('category_destinations').select('*').order('id', { ascending: true }),
+                supabaseClient.from('category_content_types').select('*').order('id', { ascending: true }),
+                supabaseClient.from('posts').select('*').order('publish_date', { ascending: false })
+            ]);
 
-            if (error) {
-                console.error("Lỗi từ Supabase:", error);
-                throw error;
-            }
-            
-            posts = data || [];
+            if (resDest.error) throw resDest.error;
+            if (resCont.error) throw resCont.error;
+            if (resPosts.error) throw resPosts.error;
+
+            dbDestinations = resDest.data || [];
+            dbContentTypes = resCont.data || [];
+            posts = resPosts.data || [];
             currentListPage = 1; 
-            
+
             renderCheckboxes('destination');
             renderCheckboxes('content_type');
             
@@ -476,13 +477,37 @@
                     <td colspan="9" class="text-center text-danger py-4">
                         <i class="fas fa-exclamation-triangle fa-2x mb-2"></i><br>
                         <strong>KẾT NỐI THẤT BẠI</strong><br>
-                        <small>Chi tiết lỗi: ${errorMsg}</small>
+                        <small>Chi tiết lỗi: ${errorMsg}</small><br>
+                        <small class="text-muted mt-2 d-block">Lưu ý: Hãy chắc chắn bạn đã chạy đoạn lệnh SQL tạo Bảng Danh mục theo hướng dẫn!</small>
                     </td>
                 </tr>`;
         }
     }
 
-    // --- XỬ LÝ GIAO DIỆN FORM ---
+    async function refetchCategories() {
+        try {
+            const [resDest, resCont] = await Promise.all([
+                supabaseClient.from('category_destinations').select('*').order('id', { ascending: true }),
+                supabaseClient.from('category_content_types').select('*').order('id', { ascending: true })
+            ]);
+            if (!resDest.error) dbDestinations = resDest.data || [];
+            if (!resCont.error) dbContentTypes = resCont.data || [];
+            
+            renderCheckboxes('destination');
+            renderCheckboxes('content_type');
+        } catch(e) { console.error(e); }
+    }
+
+    async function refetchPosts() {
+        try {
+            const { data, error } = await supabaseClient.from('posts').select('*').order('publish_date', { ascending: false });
+            if (!error) posts = data || [];
+            renderTable();
+            applyFilters();
+        } catch(e) { console.error(e); }
+    }
+
+    // --- XỬ LÝ GIAO DIỆN FORM DANH MỤC CỐ ĐỊNH ---
     function initDate() {
         const today = new Date();
         const yyyy = today.getFullYear();
@@ -491,80 +516,112 @@
         document.getElementById('publish_date').value = `${yyyy}-${mm}-${dd}`;
     }
 
-    function getMergedData(type) {
-        let defaults = type === 'destination' ? defaultDestinations : defaultContentTypes;
-        let customs = JSON.parse(localStorage.getItem(`custom_${type}s`)) || [];
-        let serverData = [];
+    async function addNewItem(type, btnElement) {
+        const inputId = type === 'destination' ? 'new_dest_input' : 'new_type_input';
+        const input = document.getElementById(inputId);
+        const val = input.value.trim();
         
-        posts.forEach(p => {
-            let items = splitData(type === 'destination' ? p.destinations : p.content_types);
-            items.forEach(i => {
-                if (i && !serverData.includes(i)) serverData.push(i);
-            });
-        });
+        if(!val) return alert("Vui lòng nhập nội dung!");
+        
+        const tableName = type === 'destination' ? 'category_destinations' : 'category_content_types';
+        
+        btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btnElement.disabled = true;
 
-        return [...new Set([...defaults, ...customs, ...serverData])]; 
-    }
-
-    function deleteCustomItem(type, itemVal) {
-        if(confirm(`Bạn có chắc muốn xóa phân loại "${itemVal}" khỏi danh sách chọn?`)) {
-            let customArr = JSON.parse(localStorage.getItem(`custom_${type}s`)) || [];
-            customArr = customArr.filter(i => i !== itemVal);
-            localStorage.setItem(`custom_${type}s`, JSON.stringify(customArr));
-            renderCheckboxes(type);
+        try {
+            const { error } = await supabaseClient.from(tableName).insert([{ name: val }]);
+            if(error) throw error;
+            input.value = '';
+            await refetchCategories();
+        } catch(e) {
+            alert("Lỗi thêm danh mục: Có thể do trùng tên.");
+        } finally {
+            btnElement.innerHTML = '<i class="fas fa-plus"></i>';
+            btnElement.disabled = false;
         }
     }
 
-    function editCustomItem(type, oldVal) {
+    async function deleteCustomItem(type, id, itemName) {
+        if(confirm(`Bạn có chắc muốn xóa phân loại "${itemName}" vĩnh viễn khỏi CSDL? \nLưu ý: Các bài viết cũ đang gắn mác này vẫn sẽ hiển thị bình thường.`)) {
+            const tableName = type === 'destination' ? 'category_destinations' : 'category_content_types';
+            try {
+                const { error } = await supabaseClient.from(tableName).delete().eq('id', id);
+                if(error) throw error;
+                await refetchCategories();
+            } catch(e) {
+                alert("Lỗi khi xóa!");
+            }
+        }
+    }
+
+    async function editCustomItem(type, id, oldVal) {
         let newVal = prompt("Nhập tên mới cho phân loại:", oldVal);
         if(newVal && newVal.trim() !== "" && newVal !== oldVal) {
-            let customArr = JSON.parse(localStorage.getItem(`custom_${type}s`)) || [];
-            let idx = customArr.indexOf(oldVal);
-            if(idx !== -1) {
-                customArr[idx] = newVal.trim();
-                localStorage.setItem(`custom_${type}s`, JSON.stringify(customArr));
-                renderCheckboxes(type);
+            newVal = newVal.trim();
+            const tableName = type === 'destination' ? 'category_destinations' : 'category_content_types';
+            const fieldToUpdate = type === 'destination' ? 'destinations' : 'content_types';
+
+            try {
+                // 1. Đổi tên ở bảng Master
+                const { error } = await supabaseClient.from(tableName).update({ name: newVal }).eq('id', id);
+                if(error) throw error;
+
+                // 2. Tìm và cập nhật tất cả bài viết đang xài chữ cũ đổi thành chữ mới
+                let postsToUpdate = posts.filter(p => splitData(p[fieldToUpdate]).includes(oldVal));
+                for(let p of postsToUpdate) {
+                    let arr = splitData(p[fieldToUpdate]);
+                    let idx = arr.indexOf(oldVal);
+                    if(idx !== -1) {
+                        arr[idx] = newVal;
+                        await supabaseClient.from('posts').update({ [fieldToUpdate]: arr.join(' | ') }).eq('id', p.id);
+                    }
+                }
+
+                alert("Cập nhật thành công toàn bộ hệ thống!");
+                await refetchCategories();
+                await refetchPosts();
+            } catch(e) {
+                alert("Lỗi cập nhật: " + e.message);
             }
         }
     }
 
     function renderFilterContentOptions() {
         const select = document.getElementById('filter_content_type');
-        const dataArr = getMergedData('content_type');
+        let currentVal = select.value;
         select.innerHTML = '<option value="All">Tất cả</option>';
-        dataArr.forEach(item => {
-            select.innerHTML += `<option value="${item}">${item}</option>`;
+        dbContentTypes.forEach(item => {
+            select.innerHTML += `<option value="${item.name}">${item.name}</option>`;
         });
+        if(Array.from(select.options).some(o => o.value === currentVal)) {
+            select.value = currentVal;
+        }
     }
 
     function renderCheckboxes(type) {
-        const dataArr = getMergedData(type); 
+        const dataArr = type === 'destination' ? dbDestinations : dbContentTypes;
         const containerId = type === 'destination' ? 'destination_container' : 'content_type_container';
         const container = document.getElementById(containerId);
         
         const currentChecked = Array.from(document.querySelectorAll(`.${type}-cb:checked`)).map(cb => cb.value);
-        let defaults = type === 'destination' ? defaultDestinations : defaultContentTypes;
         
         container.innerHTML = '';
         dataArr.forEach(item => {
-            const isChecked = currentChecked.includes(item) ? 'checked' : '';
-            const isCustom = !defaults.includes(item); 
+            const isChecked = currentChecked.includes(item.name) ? 'checked' : '';
             
-            let btnActionHtml = '';
-            if (isCustom) {
-                btnActionHtml = `
-                    <div class="position-absolute end-0 top-50 translate-middle-y pe-2" style="z-index: 10;">
-                        <i class="fas fa-pen text-primary me-2" style="cursor:pointer; font-size:0.8rem" onclick="editCustomItem('${type}', '${item}')" title="Sửa"></i>
-                        <i class="fas fa-times text-danger" style="cursor:pointer; font-size:0.9rem" onclick="deleteCustomItem('${type}', '${item}')" title="Xóa"></i>
-                    </div>
-                `;
-            }
+            // Tất cả danh mục bây giờ đều có thể được quản lý (Sửa/Xóa)
+            let btnActionHtml = `
+                <div class="position-absolute end-0 top-50 translate-middle-y pe-2" style="z-index: 10;">
+                    <i class="fas fa-pen text-primary me-2" style="cursor:pointer; font-size:0.8rem" onclick="editCustomItem('${type}', ${item.id}, '${item.name.replace(/'/g, "\\'")}')" title="Sửa"></i>
+                    <i class="fas fa-times text-danger" style="cursor:pointer; font-size:0.9rem" onclick="deleteCustomItem('${type}', ${item.id}, '${item.name.replace(/'/g, "\\'")}')" title="Xóa"></i>
+                </div>
+            `;
 
             container.innerHTML += `
                 <div class="col-12 col-sm-6 col-xl-4 checkbox-col position-relative">
-                    <label class="custom-check-box w-100" style="${isCustom ? 'padding-right: 45px;' : ''}" title="${item}">
-                        <input class="form-check-input me-2 ${type}-cb" type="checkbox" value="${item}" ${isChecked}>
-                        <span class="form-check-label text-truncate" style="font-size:0.9rem">${item}</span>
+                    <label class="custom-check-box w-100" style="padding-right: 45px;" title="${item.name}">
+                        <input class="form-check-input me-2 ${type}-cb" type="checkbox" value="${item.name}" ${isChecked}>
+                        <span class="form-check-label text-truncate" style="font-size:0.9rem">${item.name}</span>
                     </label>
                     ${btnActionHtml}
                 </div>`;
@@ -573,22 +630,6 @@
         if (type === 'content_type') {
             renderFilterContentOptions();
         }
-    }
-
-    function addNewItem(type) {
-        const inputId = type === 'destination' ? 'new_dest_input' : 'new_type_input';
-        const input = document.getElementById(inputId);
-        const val = input.value.trim();
-        
-        if(!val) return alert("Vui lòng nhập nội dung!");
-        
-        let customArr = JSON.parse(localStorage.getItem(`custom_${type}s`)) || [];
-        if(!customArr.includes(val) && !getMergedData(type).includes(val)) {
-            customArr.push(val);
-            localStorage.setItem(`custom_${type}s`, JSON.stringify(customArr));
-            renderCheckboxes(type);
-        }
-        input.value = '';
     }
 
     // --- LƯU / CẬP NHẬT LÊN SERVER ---
@@ -609,8 +650,8 @@
             author: document.getElementById('author').value,
             category: document.getElementById('category').value,
             sub_category: subCats.join(' | '),
-            destinations: dests.join(' | '),       // Dùng dấu |
-            content_types: contents.join(' | ')     // Dùng dấu |
+            destinations: dests.join(' | '),       
+            content_types: contents.join(' | ')     
         };
 
         const btn = document.getElementById('submitBtn');
@@ -630,7 +671,7 @@
             }
             
             resetForm();
-            await fetchPosts();
+            await refetchPosts();
             document.getElementById('pills-list-tab').click(); 
         } catch (error) {
             console.error('Lỗi khi lưu:', error);
@@ -688,7 +729,7 @@
             try {
                 const { error } = await supabaseClient.from('posts').delete().eq('id', id);
                 if (error) throw error;
-                await fetchPosts();
+                await refetchPosts();
             } catch (error) {
                 console.error('Lỗi khi xóa:', error);
                 alert("Lỗi xóa dữ liệu.");
@@ -701,7 +742,7 @@
             try {
                 const { error } = await supabaseClient.from('posts').delete().neq('id', 0);
                 if (error) throw error;
-                await fetchPosts();
+                await refetchPosts();
             } catch(e) { 
                 console.log(e); 
                 alert("Không thể xóa toàn bộ do chính sách bảo mật máy chủ, vui lòng xóa từng bài.");
@@ -716,13 +757,11 @@
         
         let listSearch = (document.getElementById('list_search_input').value || "").toLowerCase().trim();
         
-        // 1. Lọc theo tìm kiếm
         let filtered = posts.filter(p => {
             if (!listSearch) return true;
             return (p.title || "").toLowerCase().includes(listSearch);
         });
 
-        // 2. Sắp xếp
         filtered.sort((a,b) => new Date(b.publish_date || b.date) - new Date(a.publish_date || a.date));
 
         let totalItems = filtered.length;
@@ -733,7 +772,6 @@
             return;
         }
 
-        // 3. Phân trang
         let totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
         if(currentListPage > totalPages) currentListPage = totalPages;
 
@@ -807,15 +845,13 @@
         document.getElementById('filter_date_from').value = fromDate;
         document.getElementById('filter_date_to').value = toDate;
         
-        // Reset sub-filter khi chuyển kỳ báo cáo
         activeSubFilter = { type: '', value: '' };
         applyFilters();
     }
 
-    // Hàm gọi khi nhấn vào 1 mục trong bảng thống kê (để lọc danh sách dưới)
     function setSubFilter(type, value) {
         if (activeSubFilter.type === type && activeSubFilter.value === value) {
-            activeSubFilter = { type: '', value: '' }; // Tắt nếu nhấn lại
+            activeSubFilter = { type: '', value: '' }; 
         } else {
             activeSubFilter = { type, value };
         }
@@ -830,7 +866,6 @@
         const searchType = document.getElementById('filter_search_type').value;
         const searchTxt = document.getElementById('filter_search').value.toLowerCase().trim();
 
-        // 1. Lọc dữ liệu lớp đầu (Date, Thể loại, Nội dung, Từ khóa) -> Thống kê dựa trên đây
         let baseFiltered = posts.filter(p => {
             let pDate = p.publish_date || p.date;
             
@@ -854,10 +889,8 @@
             return true;
         });
 
-        // Vẽ lại các khung thống kê
         renderStats(baseFiltered);
 
-        // 2. Lọc lớp 2 (Khi User click chọn xem chi tiết Tác giả / Nơi gửi / Nội dung)
         let finalFiltered = baseFiltered;
         if (activeSubFilter.value) {
             finalFiltered = finalFiltered.filter(p => {
@@ -906,7 +939,6 @@
             }
         });
 
-        // 1. Tổng quan số lượng
         document.getElementById('stat_category').innerHTML = `
             <h5 class="text-center text-success mb-2 fw-bold">Tổng số tin, bài: ${totalPosts}</h5>
             <h6 class="text-center text-primary mb-3 fw-bold">Tổng lượt gửi: ${totalSends}</h6>
@@ -916,7 +948,6 @@
             </ul>
         `;
 
-        // 2. Tác giả
         let authorHtml = '';
         Object.keys(authorCounts).sort((a,b)=>authorCounts[b]-authorCounts[a]).forEach(author => {
             let isActive = activeSubFilter.type === 'author' && activeSubFilter.value === author;
@@ -927,7 +958,6 @@
         });
         document.getElementById('stat_author').innerHTML = authorHtml || '<li class="list-group-item text-muted">Không có dữ liệu</li>';
 
-        // 3. Nơi gửi
         let destHtml = '';
         Object.keys(destCounts).sort((a,b)=>destCounts[b]-destCounts[a]).forEach(dest => {
             let isActive = activeSubFilter.type === 'destination' && activeSubFilter.value === dest;
@@ -938,7 +968,6 @@
         });
         document.getElementById('stat_destination').innerHTML = destHtml || '<li class="list-group-item text-muted">Không có dữ liệu</li>';
 
-        // 4. Theo Nội dung
         let contentHtml = '';
         Object.keys(contentCounts).sort((a,b)=>contentCounts[b]-contentCounts[a]).forEach(c => {
             let isActive = activeSubFilter.type === 'content_type' && activeSubFilter.value === c;
@@ -956,7 +985,6 @@
         let tbody = document.getElementById('filteredTableBody');
         tbody.innerHTML = '';
         
-        // Cập nhật tiêu đề bảng
         let filterText = '';
         if (activeSubFilter.value) {
             let labelMap = { 'author': 'Tác giả', 'destination': 'Nơi gửi', 'content_type': 'Nội dung' };
@@ -964,7 +992,6 @@
         }
         document.getElementById('report_list_title').innerHTML = `<i class="fas fa-list me-2"></i>Danh sách tin bài theo bộ lọc hiện tại${filterText}`;
 
-        // Sắp xếp giảm dần theo ngày
         filteredReportPosts.sort((a,b) => new Date(b.publish_date || b.date) - new Date(a.publish_date || a.date));
 
         let totalItems = filteredReportPosts.length;
@@ -975,7 +1002,6 @@
             return;
         }
 
-        // Phân trang
         let totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
         if(currentReportPage > totalPages) currentReportPage = totalPages;
 
@@ -1023,9 +1049,7 @@
     // --- CHẠY KHI TẢI TRANG ---
     window.onload = function() {
         initDate();
-        renderCheckboxes('destination');
-        renderCheckboxes('content_type');
-        fetchPosts(); 
+        loadInitialData(); 
     };
 </script>
 </body>

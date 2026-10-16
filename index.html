@@ -8,6 +8,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -113,6 +115,8 @@
 
         /* List group stats */
         .list-group-item { display: flex; justify-content: space-between; align-items: center; border-color: #f0f0f0; }
+        .stat-item { cursor: pointer; transition: background-color 0.2s, filter 0.2s; }
+        .stat-item:hover { filter: brightness(0.95); }
 
         @media (max-width: 768px) {
             .header-title h2 { font-size: 1.5rem; }
@@ -177,7 +181,6 @@
                                 <select class="form-select" id="category" required>
                                     <option value="Tin">Tin</option>
                                     <option value="Bài">Bài</option>
-                                    <option value="Video">Video</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
@@ -187,6 +190,7 @@
                                     <label class="custom-check-box py-1 px-2"><input class="form-check-input me-1 sub_category-cb" type="checkbox" value="Phát thanh"><span style="font-size:0.85rem">Phát thanh</span></label>
                                     <label class="custom-check-box py-1 px-2"><input class="form-check-input me-1 sub_category-cb" type="checkbox" value="Truyền hình"><span style="font-size:0.85rem">Truyền hình</span></label>
                                     <label class="custom-check-box py-1 px-2"><input class="form-check-input me-1 sub_category-cb" type="checkbox" value="Điện tử"><span style="font-size:0.85rem">Điện tử</span></label>
+                                    <label class="custom-check-box py-1 px-2"><input class="form-check-input me-1 sub_category-cb" type="checkbox" value="Mạng xã hội (FB, YT...)"><span style="font-size:0.85rem">Mạng xã hội (FB, YT...)</span></label>
                                 </div>
                             </div>
                         </div>
@@ -225,8 +229,11 @@
         <!-- TAB 2: DANH SÁCH -->
         <div class="tab-pane fade" id="pills-list" role="tabpanel">
             <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <span><i class="fas fa-list-alt me-2"></i>Danh sách dữ liệu</span>
+                    <div class="d-flex align-items-center flex-grow-1 mx-2" style="max-width: 300px;">
+                        <input type="text" class="form-control form-control-sm rounded-pill px-3" id="list_search_input" placeholder="Tìm kiếm theo tên tin bài..." oninput="currentListPage=1; renderTable();">
+                    </div>
                     <button class="btn btn-sm btn-danger rounded-pill" onclick="clearData()"><i class="fas fa-trash-alt me-2"></i>Xóa toàn bộ</button>
                 </div>
                 <div class="card-body table-responsive">
@@ -248,6 +255,10 @@
                             <tr><td colspan="9" class="text-center text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Đang tải dữ liệu từ server...</td></tr>
                         </tbody>
                     </table>
+                    <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap">
+                        <div class="small text-muted" id="list_pagination_info"></div>
+                        <ul class="pagination pagination-sm mb-0" id="list_pagination_controls"></ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -272,22 +283,26 @@
                                 <option value="All">Tất cả</option>
                                 <option value="Tin">Tin</option>
                                 <option value="Bài">Bài</option>
-                                <option value="Video">Video</option>
                             </select>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small text-muted fw-bold">Nội dung</label>
                             <select class="form-select form-select-sm" id="filter_content_type">
-                                <!-- Khởi tạo bằng JS -->
                                 <option value="All">Tất cả</option>
                             </select>
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label small text-muted fw-bold">Tìm (Từ khóa)</label>
-                            <input type="text" class="form-control form-control-sm" id="filter_search" placeholder="Nhập từ khóa...">
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted fw-bold">Tìm kiếm</label>
+                            <div class="input-group input-group-sm">
+                                <select class="form-select" id="filter_search_type" style="max-width: 110px;">
+                                    <option value="title">Tên bài</option>
+                                    <option value="author">Tác giả</option>
+                                </select>
+                                <input type="text" class="form-control" id="filter_search" placeholder="Từ khóa...">
+                            </div>
                         </div>
-                        <div class="col-md-2 text-end">
-                            <button class="btn btn-green btn-sm w-100" onclick="applyFilters()"><i class="fas fa-search me-2"></i>Lọc dữ liệu</button>
+                        <div class="col-md-1 text-end">
+                            <button class="btn btn-green btn-sm w-100 px-0" onclick="applyFilters()">Lọc</button>
                         </div>
                     </div>
                     <div class="row mt-3">
@@ -313,7 +328,7 @@
                 </div>
                 <div class="col-md-6 col-lg-3 mb-3">
                     <div class="card h-100 border-primary shadow-sm">
-                        <div class="card-header bg-primary text-white fw-bold"><i class="fas fa-users me-2"></i>Theo Tác giả</div>
+                        <div class="card-header bg-primary text-white fw-bold"><i class="fas fa-users me-2"></i>Theo Tác giả <small>(Nhấn để lọc)</small></div>
                         <div class="card-body p-0" style="max-height: 250px; overflow-y: auto;">
                             <ul class="list-group list-group-flush" id="stat_author"></ul>
                         </div>
@@ -321,7 +336,7 @@
                 </div>
                 <div class="col-md-6 col-lg-3 mb-3">
                     <div class="card h-100 border-info shadow-sm">
-                        <div class="card-header bg-info text-white fw-bold"><i class="fas fa-share-alt me-2"></i>Theo Nơi gửi</div>
+                        <div class="card-header bg-info text-white fw-bold"><i class="fas fa-share-alt me-2"></i>Theo Nơi gửi <small>(Nhấn để lọc)</small></div>
                         <div class="card-body p-0" style="max-height: 250px; overflow-y: auto;">
                             <ul class="list-group list-group-flush" id="stat_destination"></ul>
                         </div>
@@ -329,7 +344,7 @@
                 </div>
                 <div class="col-md-6 col-lg-3 mb-3">
                     <div class="card h-100 shadow-sm" style="border-color: #ff9800">
-                        <div class="card-header text-dark fw-bold" style="background-color: #ff9800"><i class="fas fa-tags me-2"></i>Theo Nội dung</div>
+                        <div class="card-header text-dark fw-bold" style="background-color: #ff9800"><i class="fas fa-tags me-2"></i>Theo Nội dung <small>(Nhấn để lọc)</small></div>
                         <div class="card-body p-0" style="max-height: 250px; overflow-y: auto;">
                             <ul class="list-group list-group-flush" id="stat_content_type_list"></ul>
                         </div>
@@ -339,7 +354,7 @@
 
             <!-- Bảng danh sách dữ liệu lọc -->
             <div class="card mt-4">
-                <div class="card-header"><i class="fas fa-list me-2"></i>Danh sách tin bài theo bộ lọc hiện tại</div>
+                <div class="card-header" id="report_list_title"><i class="fas fa-list me-2"></i>Danh sách tin bài theo bộ lọc hiện tại</div>
                 <div class="card-body table-responsive">
                     <table class="table table-hover text-center align-middle" style="white-space: nowrap;">
                         <thead>
@@ -355,6 +370,11 @@
                         </thead>
                         <tbody id="filteredTableBody"></tbody>
                     </table>
+                    <!-- Bổ sung Phân trang Tab 3 -->
+                    <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap">
+                        <div class="small text-muted" id="report_pagination_info"></div>
+                        <ul class="pagination pagination-sm mb-0" id="report_pagination_controls"></ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -368,18 +388,62 @@
 <script>
     // --- KẾT NỐI SUPABASE ---
     const SUPABASE_URL = 'https://kgqijxdbcdxbwpdilbub.supabase.co';
-    
-    // YÊU CẦU: XÓA dòng chữ bên dưới và dán MÃ CỦA BẠN (bắt đầu bằng eyJ...) vào giữa 2 dấu nháy đơn
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtncWlqeGRiY2R4YndwZGlsYnViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4Mzg5MjMsImV4cCI6MjEwNzQxNDkyM30.E1t5K-5-60ZSz5FuvjwsntB0byroVvym34OWKIXCrQU';
-    
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // --- KHỞI TẠO DỮ LIỆU TĨNH ---
-    const defaultDestinations = ['Trang CAT', 'Báo ĐT', 'THĐT', 'PTĐT', 'Web Tỉnh ủy', 'Web TBND', 'Báo CAND', 'ANTV', 'Tuổi Trẻ', 'Người LĐ'];
-    const defaultContentTypes = ['An ninh', 'PCTP', 'Quản lý hành chính', 'PCCC', 'Giao thông', 'XDLL', 'Phong trào', 'Chuyển đổi số', 'Cải cách hành chính'];
+    // --- KHỞI TẠO DỮ LIỆU CỐ ĐỊNH ---
+    const defaultDestinations = [
+        'Trang CAT', 'Báo ĐT', 'THĐT', 'PTĐT', 'Web Tỉnh ủy', 'Web TBND', 'Báo CAND', 'ANTV', 'Tuổi Trẻ', 'Người LĐ', 
+        'Nhân dân', 'Cổng BCA', 'Facebook', 'Youtube', 'Báo CATPHCM', 'Sống trong lòng dân', 'X03',
+        'CM VANTQ', 'CM ANDS', 'TM ANTT'
+    ];
+    
+    // Đã thay thế và loại bỏ trùng lặp, thống nhất dùng "Công an xã, phường"
+    const defaultContentTypes = [
+        'An ninh', 'PCTP', 'Quản lý hành chính', 'PCCC', 'Giao thông', 'XDLL', 'Phong trào', 'Chuyển đổi số', 'Cải cách hành chính', 
+        'Công an xã, phường', 'Đoàn Hội', 'ANTT sự kiện', 'ANTT cơ sở', 'Ma túy', 'TNXH', 'Kinh tế', 'Môi trường', 'Hình sự'
+    ];
 
     let posts = []; 
     let editingId = null; 
+
+    // Biến phân trang
+    const itemsPerPage = 50;
+    let currentListPage = 1;
+    let filteredReportPosts = [];
+    let currentReportPage = 1;
+
+    // Biến quản lý trạng thái Lọc bấm vào bảng Stat
+    let activeSubFilter = { type: '', value: '' };
+
+    // --- HÀM TÁCH DỮ LIỆU THÔNG MINH ---
+    function splitData(str) {
+        if (!str) return [];
+        // Xử lý dữ liệu chuẩn mới (dùng dấu |)
+        if (str.includes(' | ')) {
+            return str.split(' | ').map(s => {
+                let trimmed = s.trim();
+                // Tự động gộp chuẩn hóa các tên lỗi cũ
+                if (trimmed === 'CA xã, phường' || trimmed === 'Công an xã' || trimmed === 'CA xã') return 'Công an xã, phường';
+                return trimmed;
+            }).filter(Boolean);
+        }
+        
+        // Xử lý dữ liệu lỗi cũ (dùng dấu phẩy gây đứt câu)
+        let arr = str.split(',').map(s => s.trim()).filter(Boolean);
+        for (let i = 0; i < arr.length; i++) {
+            if (arr[i] === 'Công an xã' || arr[i] === 'CA xã') {
+                if (i < arr.length - 1 && arr[i+1] === 'phường') {
+                    arr[i] = 'Công an xã, phường';
+                    arr.splice(i+1, 1);
+                } else {
+                    arr[i] = 'Công an xã, phường'; // Cứ gặp là ép thành chuẩn
+                }
+            }
+            if (arr[i] === 'CA xã, phường') arr[i] = 'Công an xã, phường';
+        }
+        return [...new Set(arr)]; // Trả về mảng đã loại bỏ trùng lặp
+    }
 
     // --- GỌI DỮ LIỆU TỪ SERVER ---
     async function fetchPosts() {
@@ -395,6 +459,11 @@
             }
             
             posts = data || [];
+            currentListPage = 1; 
+            
+            renderCheckboxes('destination');
+            renderCheckboxes('content_type');
+            
             renderTable();
             if (document.getElementById('pills-report').classList.contains('active')) {
                 applyFilters();
@@ -425,10 +494,18 @@
     function getMergedData(type) {
         let defaults = type === 'destination' ? defaultDestinations : defaultContentTypes;
         let customs = JSON.parse(localStorage.getItem(`custom_${type}s`)) || [];
-        return [...new Set([...defaults, ...customs])]; 
+        let serverData = [];
+        
+        posts.forEach(p => {
+            let items = splitData(type === 'destination' ? p.destinations : p.content_types);
+            items.forEach(i => {
+                if (i && !serverData.includes(i)) serverData.push(i);
+            });
+        });
+
+        return [...new Set([...defaults, ...customs, ...serverData])]; 
     }
 
-    // Xóa mục phân loại tự chế
     function deleteCustomItem(type, itemVal) {
         if(confirm(`Bạn có chắc muốn xóa phân loại "${itemVal}" khỏi danh sách chọn?`)) {
             let customArr = JSON.parse(localStorage.getItem(`custom_${type}s`)) || [];
@@ -438,7 +515,6 @@
         }
     }
 
-    // Sửa mục phân loại tự chế
     function editCustomItem(type, oldVal) {
         let newVal = prompt("Nhập tên mới cho phân loại:", oldVal);
         if(newVal && newVal.trim() !== "" && newVal !== oldVal) {
@@ -462,19 +538,17 @@
     }
 
     function renderCheckboxes(type) {
-        let defaults = type === 'destination' ? defaultDestinations : defaultContentTypes;
-        let customs = JSON.parse(localStorage.getItem(`custom_${type}s`)) || [];
-        const dataArr = [...new Set([...defaults, ...customs])]; 
-        
+        const dataArr = getMergedData(type); 
         const containerId = type === 'destination' ? 'destination_container' : 'content_type_container';
         const container = document.getElementById(containerId);
         
         const currentChecked = Array.from(document.querySelectorAll(`.${type}-cb:checked`)).map(cb => cb.value);
+        let defaults = type === 'destination' ? defaultDestinations : defaultContentTypes;
         
         container.innerHTML = '';
         dataArr.forEach(item => {
             const isChecked = currentChecked.includes(item) ? 'checked' : '';
-            const isCustom = customs.includes(item); // Chỉ hiện nút sửa/xóa với thẻ custom
+            const isCustom = !defaults.includes(item); 
             
             let btnActionHtml = '';
             if (isCustom) {
@@ -496,7 +570,6 @@
                 </div>`;
         });
 
-        // Cập nhật thẻ dropdown ở trang bộ lọc
         if (type === 'content_type') {
             renderFilterContentOptions();
         }
@@ -535,9 +608,9 @@
             title: document.getElementById('title').value,
             author: document.getElementById('author').value,
             category: document.getElementById('category').value,
-            sub_category: subCats.join(', '),
-            destinations: dests.join(', '),
-            content_types: contents.join(', ')
+            sub_category: subCats.join(' | '),
+            destinations: dests.join(' | '),       // Dùng dấu |
+            content_types: contents.join(' | ')     // Dùng dấu |
         };
 
         const btn = document.getElementById('submitBtn');
@@ -587,17 +660,17 @@
         document.getElementById('author').value = post.author;
         document.getElementById('category').value = post.category;
 
-        const subCatArr = (post.sub_category || "").split(', ');
+        const subCatArr = splitData(post.sub_category);
         document.querySelectorAll('.sub_category-cb').forEach(cb => {
             cb.checked = subCatArr.includes(cb.value);
         });
 
-        const destArr = post.destinations.split(', ');
+        const destArr = splitData(post.destinations);
         document.querySelectorAll('.destination-cb').forEach(cb => {
             cb.checked = destArr.includes(cb.value);
         });
 
-        const contArr = (post.content_types || "").split(', ');
+        const contArr = splitData(post.content_types);
         document.querySelectorAll('.content_type-cb').forEach(cb => {
             cb.checked = contArr.includes(cb.value);
         });
@@ -636,33 +709,73 @@
         }
     }
 
-    // --- BẢNG DỮ LIỆU ---
+    // --- BẢNG DỮ LIỆU DANH SÁCH (CÓ TÌM KIẾM VÀ PHÂN TRANG) ---
     function renderTable() {
         let tbody = document.getElementById('dataTableBody');
         tbody.innerHTML = '';
-        if(posts.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Chưa có dữ liệu</td></tr>';
+        
+        let listSearch = (document.getElementById('list_search_input').value || "").toLowerCase().trim();
+        
+        // 1. Lọc theo tìm kiếm
+        let filtered = posts.filter(p => {
+            if (!listSearch) return true;
+            return (p.title || "").toLowerCase().includes(listSearch);
+        });
+
+        // 2. Sắp xếp
+        filtered.sort((a,b) => new Date(b.publish_date || b.date) - new Date(a.publish_date || a.date));
+
+        let totalItems = filtered.length;
+        if(totalItems === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Không tìm thấy dữ liệu</td></tr>';
+            document.getElementById('list_pagination_info').innerHTML = '';
+            document.getElementById('list_pagination_controls').innerHTML = '';
             return;
         }
 
-        posts.forEach((post, index) => {
+        // 3. Phân trang
+        let totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+        if(currentListPage > totalPages) currentListPage = totalPages;
+
+        let start = (currentListPage - 1) * itemsPerPage;
+        let end = start + itemsPerPage;
+        let paginated = filtered.slice(start, end);
+
+        paginated.forEach((post, index) => {
+            let actualIndex = start + index + 1;
             let pDate = post.publish_date || post.date; 
             tbody.innerHTML += `
             <tr class="fade-in">
-                <td>${index + 1}</td>
+                <td>${actualIndex}</td>
                 <td>${formatDate(pDate)}</td>
                 <td class="fw-bold text-success">${post.author}</td>
                 <td class="text-start" style="white-space: normal; min-width: 250px;">${post.title}</td>
                 <td><span class="badge bg-danger">${post.category}</span></td>
-                <td><span class="badge bg-secondary">${post.sub_category}</span></td>
-                <td class="text-start" style="white-space: normal; font-size: 0.85rem">${post.destinations}</td>
-                <td class="text-start" style="white-space: normal; font-size: 0.85rem">${post.content_types}</td>
+                <td><span class="badge bg-secondary">${splitData(post.sub_category).join(', ')}</span></td>
+                <td class="text-start" style="white-space: normal; font-size: 0.85rem">${splitData(post.destinations).join(', ')}</td>
+                <td class="text-start" style="white-space: normal; font-size: 0.85rem">${splitData(post.content_types).join(', ')}</td>
                 <td>
                     <button class="btn btn-sm btn-outline-primary rounded-circle" onclick="editPost(${post.id})" title="Sửa"><i class="fas fa-pen"></i></button>
                     <button class="btn btn-sm btn-outline-danger rounded-circle ms-1" onclick="deletePost(${post.id})" title="Xóa"><i class="fas fa-trash"></i></button>
                 </td>
             </tr>`;
         });
+
+        renderListPagination(totalItems, totalPages);
+    }
+
+    function renderListPagination(totalItems, totalPages) {
+        document.getElementById('list_pagination_info').innerText = `Hiển thị ${totalItems > 0 ? (currentListPage-1)*itemsPerPage + 1 : 0} - ${Math.min(currentListPage*itemsPerPage, totalItems)} / ${totalItems} tin bài`;
+        
+        let html = '';
+        if (totalPages > 1) {
+            html += `<li class="page-item ${currentListPage === 1 ? 'disabled' : ''}"><a class="page-link" href="javascript:void(0)" onclick="currentListPage--; renderTable()">Trước</a></li>`;
+            for(let i=1; i<=totalPages; i++) {
+                html += `<li class="page-item ${currentListPage === i ? 'active' : ''}"><a class="page-link" href="javascript:void(0)" onclick="currentListPage=${i}; renderTable()">${i}</a></li>`;
+            }
+            html += `<li class="page-item ${currentListPage === totalPages ? 'disabled' : ''}"><a class="page-link" href="javascript:void(0)" onclick="currentListPage++; renderTable()">Sau</a></li>`;
+        }
+        document.getElementById('list_pagination_controls').innerHTML = html;
     }
 
     function formatDate(dateStr) {
@@ -693,7 +806,20 @@
         
         document.getElementById('filter_date_from').value = fromDate;
         document.getElementById('filter_date_to').value = toDate;
+        
+        // Reset sub-filter khi chuyển kỳ báo cáo
+        activeSubFilter = { type: '', value: '' };
         applyFilters();
+    }
+
+    // Hàm gọi khi nhấn vào 1 mục trong bảng thống kê (để lọc danh sách dưới)
+    function setSubFilter(type, value) {
+        if (activeSubFilter.type === type && activeSubFilter.value === value) {
+            activeSubFilter = { type: '', value: '' }; // Tắt nếu nhấn lại
+        } else {
+            activeSubFilter = { type, value };
+        }
+        applyFilters(); 
     }
 
     function applyFilters() {
@@ -701,66 +827,81 @@
         const to = document.getElementById('filter_date_to').value;
         const cat = document.getElementById('filter_category').value;
         const contentFilter = document.getElementById('filter_content_type').value;
+        const searchType = document.getElementById('filter_search_type').value;
         const searchTxt = document.getElementById('filter_search').value.toLowerCase().trim();
 
-        let filtered = posts.filter(p => {
+        // 1. Lọc dữ liệu lớp đầu (Date, Thể loại, Nội dung, Từ khóa) -> Thống kê dựa trên đây
+        let baseFiltered = posts.filter(p => {
             let pDate = p.publish_date || p.date;
             
-            let passDate = true;
-            if(from && pDate < from) passDate = false;
-            if(to && pDate > to) passDate = false;
+            if(from && pDate < from) return false;
+            if(to && pDate > to) return false;
+            if(cat !== 'All' && p.category !== cat) return false;
             
-            let passCat = (cat === 'All' || p.category === cat);
-            
-            let passContent = true;
             if (contentFilter !== 'All') {
-                let pContents = (p.content_types || "").split(', ').map(c => c.trim());
-                if (!pContents.includes(contentFilter)) {
-                    passContent = false;
-                }
+                let pContents = splitData(p.content_types);
+                if (!pContents.includes(contentFilter)) return false;
             }
 
-            let passSearch = true;
             if (searchTxt) {
-                let sTitle = (p.title || "").toLowerCase();
-                let sAuthor = (p.author || "").toLowerCase();
-                if (!sTitle.includes(searchTxt) && !sAuthor.includes(searchTxt)) {
-                    passSearch = false;
+                if (searchType === 'title') {
+                    if (!(p.title || "").toLowerCase().includes(searchTxt)) return false;
+                } else if (searchType === 'author') {
+                    if (!(p.author || "").toLowerCase().includes(searchTxt)) return false;
                 }
             }
 
-            return passDate && passCat && passContent && passSearch;
+            return true;
         });
 
-        renderStats(filtered);
-        renderFilteredTable(filtered);
+        // Vẽ lại các khung thống kê
+        renderStats(baseFiltered);
+
+        // 2. Lọc lớp 2 (Khi User click chọn xem chi tiết Tác giả / Nơi gửi / Nội dung)
+        let finalFiltered = baseFiltered;
+        if (activeSubFilter.value) {
+            finalFiltered = finalFiltered.filter(p => {
+                if (activeSubFilter.type === 'author') return p.author === activeSubFilter.value;
+                if (activeSubFilter.type === 'destination') {
+                    let dests = splitData(p.destinations);
+                    return dests.includes(activeSubFilter.value);
+                }
+                if (activeSubFilter.type === 'content_type') {
+                    let conts = splitData(p.content_types);
+                    return conts.includes(activeSubFilter.value);
+                }
+                return true;
+            });
+        }
+        
+        filteredReportPosts = finalFiltered;
+        currentReportPage = 1;
+        renderFilteredTable();
     }
 
     function renderStats(dataArray) {
         let totalPosts = dataArray.length;
         let totalSends = 0;
-        let categoryCounts = {'Tin': 0, 'Bài': 0, 'Video': 0};
+        let categoryCounts = {'Tin': 0, 'Bài': 0};
         let authorCounts = {};
         let destCounts = {};
         let contentCounts = {}; 
 
         dataArray.forEach(p => {
-            categoryCounts[p.category] = (categoryCounts[p.category] || 0) + 1;
+            if(categoryCounts[p.category] !== undefined) categoryCounts[p.category] += 1;
             authorCounts[p.author] = (authorCounts[p.author] || 0) + 1;
             
             if(p.destinations) {
-                let dests = p.destinations.split(', ');
-                totalSends += dests.length; // Tổng lượt gửi tất cả các nơi
+                let dests = splitData(p.destinations);
+                totalSends += dests.length; 
                 dests.forEach(d => {
-                    let trimmed = d.trim();
-                    if(trimmed) destCounts[trimmed] = (destCounts[trimmed] || 0) + 1;
+                    if(d) destCounts[d] = (destCounts[d] || 0) + 1;
                 });
             }
 
             if(p.content_types) {
-                p.content_types.split(', ').forEach(c => {
-                    let trimmed = c.trim();
-                    if(trimmed) contentCounts[trimmed] = (contentCounts[trimmed] || 0) + 1;
+                splitData(p.content_types).forEach(c => {
+                    if(c) contentCounts[c] = (contentCounts[c] || 0) + 1;
                 });
             }
         });
@@ -772,59 +913,112 @@
             <ul class="list-group list-group-flush">
                 <li class="list-group-item">Số lượng Tin <span class="badge bg-secondary rounded-pill">${categoryCounts['Tin']}</span></li>
                 <li class="list-group-item">Số lượng Bài <span class="badge bg-secondary rounded-pill">${categoryCounts['Bài']}</span></li>
-                <li class="list-group-item">Số lượng Video <span class="badge bg-secondary rounded-pill">${categoryCounts['Video']}</span></li>
             </ul>
         `;
 
         // 2. Tác giả
         let authorHtml = '';
         Object.keys(authorCounts).sort((a,b)=>authorCounts[b]-authorCounts[a]).forEach(author => {
-            authorHtml += `<li class="list-group-item">${author} <span class="badge bg-primary rounded-pill">${authorCounts[author]}</span></li>`;
+            let isActive = activeSubFilter.type === 'author' && activeSubFilter.value === author;
+            let bgClass = isActive ? 'bg-primary text-white' : '';
+            let badgeClass = isActive ? 'bg-light text-primary' : 'bg-primary text-white';
+            
+            authorHtml += `<li class="list-group-item stat-item ${bgClass}" onclick="setSubFilter('author', '${author.replace(/'/g, "\\'")}')">${author} <span class="badge ${badgeClass} rounded-pill">${authorCounts[author]}</span></li>`;
         });
         document.getElementById('stat_author').innerHTML = authorHtml || '<li class="list-group-item text-muted">Không có dữ liệu</li>';
 
         // 3. Nơi gửi
         let destHtml = '';
         Object.keys(destCounts).sort((a,b)=>destCounts[b]-destCounts[a]).forEach(dest => {
-            destHtml += `<li class="list-group-item">${dest} <span class="badge bg-info rounded-pill">${destCounts[dest]}</span></li>`;
+            let isActive = activeSubFilter.type === 'destination' && activeSubFilter.value === dest;
+            let bgClass = isActive ? 'bg-info text-white' : '';
+            let badgeClass = isActive ? 'bg-light text-info' : 'bg-info text-white';
+
+            destHtml += `<li class="list-group-item stat-item ${bgClass}" onclick="setSubFilter('destination', '${dest.replace(/'/g, "\\'")}')">${dest} <span class="badge ${badgeClass} rounded-pill">${destCounts[dest]}</span></li>`;
         });
         document.getElementById('stat_destination').innerHTML = destHtml || '<li class="list-group-item text-muted">Không có dữ liệu</li>';
 
         // 4. Theo Nội dung
         let contentHtml = '';
         Object.keys(contentCounts).sort((a,b)=>contentCounts[b]-contentCounts[a]).forEach(c => {
-            contentHtml += `<li class="list-group-item">${c} <span class="badge rounded-pill" style="background-color: #ff9800; color: #fff;">${contentCounts[c]}</span></li>`;
+            let isActive = activeSubFilter.type === 'content_type' && activeSubFilter.value === c;
+            let bgClass = isActive ? 'text-white' : '';
+            let bgStyle = isActive ? 'background-color: #ff9800;' : '';
+            let badgeClass = isActive ? 'bg-light text-dark' : 'text-white';
+            let badgeStyle = isActive ? '' : 'background-color: #ff9800;';
+
+            contentHtml += `<li class="list-group-item stat-item ${bgClass}" style="${bgStyle}" onclick="setSubFilter('content_type', '${c.replace(/'/g, "\\'")}')">${c} <span class="badge ${badgeClass} rounded-pill" style="${badgeStyle}">${contentCounts[c]}</span></li>`;
         });
         document.getElementById('stat_content_type_list').innerHTML = contentHtml || '<li class="list-group-item text-muted">Không có dữ liệu</li>';
     }
 
-    function renderFilteredTable(dataArray) {
+    function renderFilteredTable() {
         let tbody = document.getElementById('filteredTableBody');
         tbody.innerHTML = '';
         
-        if(dataArray.length === 0) {
+        // Cập nhật tiêu đề bảng
+        let filterText = '';
+        if (activeSubFilter.value) {
+            let labelMap = { 'author': 'Tác giả', 'destination': 'Nơi gửi', 'content_type': 'Nội dung' };
+            filterText = ` <span class="text-danger fw-bold">(Lọc: ${labelMap[activeSubFilter.type]} - ${activeSubFilter.value})</span>`;
+        }
+        document.getElementById('report_list_title').innerHTML = `<i class="fas fa-list me-2"></i>Danh sách tin bài theo bộ lọc hiện tại${filterText}`;
+
+        // Sắp xếp giảm dần theo ngày
+        filteredReportPosts.sort((a,b) => new Date(b.publish_date || b.date) - new Date(a.publish_date || a.date));
+
+        let totalItems = filteredReportPosts.length;
+        if(totalItems === 0) {
             tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Không có dữ liệu phù hợp với bộ lọc</td></tr>';
+            document.getElementById('report_pagination_info').innerHTML = '';
+            document.getElementById('report_pagination_controls').innerHTML = '';
             return;
         }
 
-        dataArray.forEach((post, index) => {
+        // Phân trang
+        let totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+        if(currentReportPage > totalPages) currentReportPage = totalPages;
+
+        let start = (currentReportPage - 1) * itemsPerPage;
+        let end = start + itemsPerPage;
+        let paginated = filteredReportPosts.slice(start, end);
+
+        paginated.forEach((post, index) => {
+            let actualIndex = start + index + 1;
             let pDate = post.publish_date || post.date;
             tbody.innerHTML += `
             <tr class="fade-in">
-                <td>${index + 1}</td>
+                <td>${actualIndex}</td>
                 <td>${formatDate(pDate)}</td>
                 <td class="fw-bold text-success">${post.author}</td>
                 <td class="text-start" style="white-space: normal; min-width: 250px;">${post.title}</td>
                 <td><span class="badge bg-danger">${post.category}</span></td>
-                <td><span class="badge bg-secondary">${post.sub_category}</span></td>
-                <td class="text-start" style="white-space: normal; font-size: 0.85rem">${post.destinations}</td>
+                <td><span class="badge bg-secondary">${splitData(post.sub_category).join(', ')}</span></td>
+                <td class="text-start" style="white-space: normal; font-size: 0.85rem">${splitData(post.destinations).join(', ')}</td>
             </tr>`;
         });
+
+        renderReportPagination(totalItems, totalPages);
+    }
+
+    function renderReportPagination(totalItems, totalPages) {
+        document.getElementById('report_pagination_info').innerText = `Hiển thị ${totalItems > 0 ? (currentReportPage-1)*itemsPerPage + 1 : 0} - ${Math.min(currentReportPage*itemsPerPage, totalItems)} / ${totalItems} tin bài`;
+        
+        let html = '';
+        if (totalPages > 1) {
+            html += `<li class="page-item ${currentReportPage === 1 ? 'disabled' : ''}"><a class="page-link" href="javascript:void(0)" onclick="currentReportPage--; renderFilteredTable()">Trước</a></li>`;
+            for(let i=1; i<=totalPages; i++) {
+                html += `<li class="page-item ${currentReportPage === i ? 'active' : ''}"><a class="page-link" href="javascript:void(0)" onclick="currentReportPage=${i}; renderFilteredTable()">${i}</a></li>`;
+            }
+            html += `<li class="page-item ${currentReportPage === totalPages ? 'disabled' : ''}"><a class="page-link" href="javascript:void(0)" onclick="currentReportPage++; renderFilteredTable()">Sau</a></li>`;
+        }
+        document.getElementById('report_pagination_controls').innerHTML = html;
     }
 
     document.getElementById('pills-report-tab').addEventListener('shown.bs.tab', applyFilters);
     document.getElementById('filter_search').addEventListener('input', applyFilters);
     document.getElementById('filter_content_type').addEventListener('change', applyFilters);
+    document.getElementById('filter_search_type').addEventListener('change', applyFilters);
 
     // --- CHẠY KHI TẢI TRANG ---
     window.onload = function() {
